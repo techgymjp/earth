@@ -13,6 +13,12 @@ const NAME_OVERRIDE = {
   '中華人民共和国': '中国', 'モンゴル国': 'モンゴル', 'マリ共和国': 'マリ',
   '北キプロス・トルコ共和国': '北キプロス', 'コソボ共和国': 'コソボ',
 };
+// 英語名 (NAME_EN) を一般的な呼び方に揃える
+const EN_OVERRIDE = {
+  "People's Republic of China": 'China', 'Turkish Republic of Northern Cyprus': 'Northern Cyprus',
+  'Czech Republic': 'Czechia', 'Federated States of Micronesia': 'Micronesia',
+  'Democratic Republic of the Congo': 'DR Congo', 'Republic of the Congo': 'Republic of the Congo',
+};
 // 国として出題しない地域 (クリックはできる)
 const NOT_QUESTION = new Set([
   'Greenland', 'Jersey', 'Guernsey', 'Isle of Man', 'Aruba', 'Curaçao', 'Sint Maarten',
@@ -22,10 +28,13 @@ const NOT_QUESTION = new Set([
 const FORCE_QUESTION = new Set(['Palestine', 'Kosovo', 'Israel']);
 const QUESTION_TYPES = new Set(['Sovereign country', 'Country', 'Sovereignty']);
 
-const CONTINENT_JA = {
-  Asia: 'アジア', Europe: 'ヨーロッパ', Africa: 'アフリカ', 'North America': '北アメリカ',
-  'South America': '南アメリカ', Oceania: 'オセアニア', Antarctica: '南極',
-  'Seven seas (open ocean)': 'その他',
+// Natural Earth で "Seven seas" になっている島国の所属地域
+const CONTINENT_FIX = { Seychelles: 'africa', Mauritius: 'africa', Maldives: 'asia' };
+// 大陸はキーで持ち、表示名はゲーム側で言語ごとに変換する
+const CONTINENT_KEY = {
+  Asia: 'asia', Europe: 'europe', Africa: 'africa', 'North America': 'namerica',
+  'South America': 'samerica', Oceania: 'oceania', Antarctica: 'antarctica',
+  'Seven seas (open ocean)': 'other',
 };
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -60,12 +69,13 @@ const features = src.features.map((f, i) => {
   const p = f.properties;
   const ja = NAME_OVERRIDE[p.NAME_JA] || p.NAME_JA;
   if (!ja) throw new Error('no ja name: ' + p.NAME);
+  const en = EN_OVERRIDE[p.NAME_EN] || p.NAME_EN || p.NAME;
   const q = FORCE_QUESTION.has(p.NAME) || (QUESTION_TYPES.has(p.TYPE) && !NOT_QUESTION.has(p.NAME));
   return {
     type: 'Feature',
     properties: {
-      id: i, en: p.NAME, ja,
-      continent: CONTINENT_JA[p.CONTINENT] || 'その他',
+      id: i, en, ja,
+      continent: CONTINENT_FIX[p.NAME] || CONTINENT_KEY[p.CONTINENT] || 'other',
       rank: p.LABELRANK, q,
       lat: r2(p.LABEL_Y), lng: r2(p.LABEL_X),
       area: Math.round(geomArea(f.geometry) * 100) / 100, // 平方度 (目安)

@@ -282,3 +282,28 @@ h2 {
 @media (max-width: 480px) {
   .bottom { left: 12px; transform: none; }
 }
+
+/* 言語切り替え */
+.panel { position: relative; }
+.lang-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -8px -8px 4px 0;
+}
+.lang-switch button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--muted);
+  font-size: 12px;
+}
+.lang-switch button.active {
+  background: rgba(79, 195, 247, 0.22);
+  border-color: var(--accent);
+  color: var(--text);
+}
+#q-name.en { margin: 0 4px; }
+html[lang="en"] h1 { letter-spacing: 0.02em; font-size: 38px; }
+@media (max-width: 480px) { html[lang="en"] h1 { font-size: 30px; } }

@@ -8,13 +8,93 @@
   const TINY_RADIUS_KM = 150;
 
   const DIFFICULTY = {
-    easy:   { label: 'かんたん',   borders: true,  filter: (p) => p.rank <= 3 },
-    normal: { label: 'ふつう',     borders: false, filter: (p) => p.rank <= 4 },
-    hard:   { label: 'むずかしい', borders: false, filter: (p) => p.rank >= 5 }, // マニアックな国
+    easy:   { borders: true,  filter: (p) => p.rank <= 3 },
+    normal: { borders: false, filter: (p) => p.rank <= 4 },
+    hard:   { borders: false, filter: (p) => p.rank >= 5 }, // マニアックな国
   };
 
   const $ = (id) => document.getElementById(id);
   const features = window.COUNTRIES.features;
+
+  // ---------------------------------------------------------------- 多言語対応
+  const I18N = {
+    ja: {
+      docTitle: '国探し',
+      title: '国探し',
+      lead: '地球をくるくる回して、お題の国を見つけよう！<br>全10問・タイムも計測します',
+      difficulty: '難易度', region: '地域',
+      easy: 'かんたん', normal: 'ふつう', hard: 'むずかしい',
+      easyDesc: '国境線あり・有名な国', normalDesc: '国境線なし・有名な国〜中くらいの国', hardDesc: '国境線なし・マニアックな国',
+      all: '全世界', asia: 'アジア', europe: 'ヨーロッパ', africa: 'アフリカ',
+      namerica: '北アメリカ', samerica: '南アメリカ', oceania: 'オセアニア', antarctica: '南極', other: 'その他',
+      start: 'スタート',
+      howto: 'ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答',
+      loading: '地球を読み込み中…',
+      hint: 'ヒント', skip: 'パス', quit: 'やめる',
+      next: '次の問題へ', seeResult: '結果を見る',
+      result: '結果', correctCount: '正解', totalTime: '合計タイム',
+      retry: 'もう一度', menu: 'タイトルへ',
+      sec: (v) => `${v}秒`,
+      pts: (n) => `${n}点`,
+      question: (name) => [name, 'を探して！'],
+      noQuestions: 'この条件では問題がありません',
+      correct: (pts, time) => `正解！ +${pts}点（${time}）`,
+      answerWas: (name) => `正解は「${name}」でした`,
+      sea: 'そこは海です',
+      thatIs: (name) => `そこは「${name}」です`,
+      wrong: (name) => `ちがいます！ そこは「${name}」です`,
+      hint1: (c) => `ヒント: ${c}の国です`,
+      hint2: (c) => `ヒント: ${c}の国です ／ このあたりにあります`,
+      comments: ['🌏 地理マスター！すばらしい！', '✈️ 世界旅行の達人！', '🧭 なかなかの冒険家！', '🗺 もう少しで一人前！', '🎒 地球儀をくるくる回して覚えよう！'],
+      modeLabel: (d, r) => `${d}・${r}`,
+      newBest: (label, prev) => `🎉 ベスト更新！（${label}）前回のベスト: ${prev}点`,
+      best: (label, score, time) => `ベストスコア（${label}）: ${score}点${time ? ' / ' + time : ''}`,
+      soundLabel: 'サウンドのオン/オフ',
+    },
+    en: {
+      docTitle: 'Find the Country',
+      title: 'Find the Country',
+      lead: 'Spin the globe and find the country!<br>10 questions — against the clock',
+      difficulty: 'Difficulty', region: 'Region',
+      easy: 'Easy', normal: 'Normal', hard: 'Hard',
+      easyDesc: 'Borders shown · Well-known countries', normalDesc: 'No borders · Well-known to mid-sized', hardDesc: 'No borders · Obscure countries',
+      all: 'World', asia: 'Asia', europe: 'Europe', africa: 'Africa',
+      namerica: 'North America', samerica: 'South America', oceania: 'Oceania', antarctica: 'Antarctica', other: 'Other',
+      start: 'Start',
+      howto: 'Drag to rotate · Scroll/pinch to zoom · Click/tap a country to answer',
+      loading: 'Loading the Earth…',
+      hint: 'Hint', skip: 'Skip', quit: 'Quit',
+      next: 'Next question', seeResult: 'See results',
+      result: 'Results', correctCount: 'Correct', totalTime: 'Total time',
+      retry: 'Play again', menu: 'Title',
+      sec: (v) => `${v}s`,
+      pts: (n) => `${n} pts`,
+      question: (name) => ['Find ', name, '!'],
+      noQuestions: 'No questions match these settings',
+      correct: (pts, time) => `Correct! +${pts} pts (${time})`,
+      answerWas: (name) => `The answer was ${name}`,
+      sea: "That's the ocean",
+      thatIs: (name) => `That's ${name}`,
+      wrong: (name) => `Wrong! That's ${name}`,
+      hint1: (c) => `Hint: It's in ${c}`,
+      hint2: (c) => `Hint: It's in ${c} — somewhere around here`,
+      comments: ['🌏 Geography master! Amazing!', '✈️ Seasoned world traveler!', '🧭 Quite the explorer!', '🗺 Almost there!', '🎒 Keep spinning the globe and learning!'],
+      modeLabel: (d, r) => `${d} · ${r}`,
+      newBest: (label, prev) => `🎉 New best! (${label}) Previous best: ${prev} pts`,
+      best: (label, score, time) => `Best score (${label}): ${score} pts${time ? ' / ' + time : ''}`,
+      soundLabel: 'Toggle sound',
+    },
+  };
+
+  let lang = 'ja';
+  try {
+    lang = localStorage.getItem('kunisagashi.lang') || (/^ja\b/i.test(navigator.language || '') ? 'ja' : 'en');
+  } catch (e) {
+    lang = /^ja\b/i.test(navigator.language || '') ? 'ja' : 'en';
+  }
+  if (!I18N[lang]) lang = 'en';
+  const T = () => I18N[lang];
+  const nameOf = (p) => (lang === 'ja' ? p.ja : p.en);
 
   // ---------------------------------------------------------------- 効果音
   const Sound = (() => {
@@ -305,7 +385,7 @@
     return 2 * R * Math.asin(Math.sqrt(h));
   }
 
-  const fmtTime = (ms) => (ms / 1000).toFixed(1) + '秒';
+  const fmtTime = (ms) => T().sec((ms / 1000).toFixed(1));
 
   let toastTimer = null;
   function toast(text, cls = '', ms = 1800) {
@@ -355,7 +435,7 @@
       .map((f) => f.properties)
       .filter((p) => p.q && diff.filter(p) && (state.region === 'all' || p.continent === state.region));
     if (pool.length === 0) {
-      toast('この条件では問題がありません', 'warn');
+      toast(T().noQuestions, 'warn');
       return;
     }
     // 国数が10未満の地域では重複を許して10問にする
@@ -365,6 +445,7 @@
     state.index = 0;
     state.score = 0;
     state.results = [];
+    state.lastResult = null;
     state.playing = true;
     controls.autoRotate = false;
     show('play');
@@ -384,9 +465,9 @@
     refreshPolygons();
 
     $('q-num').textContent = `Q${state.index + 1}/${TOTAL_QUESTIONS}`;
-    $('q-name').textContent = state.target.ja;
+    renderQuestion();
     $('hint-text').textContent = '';
-    $('score').textContent = `${state.score}点`;
+    $('score').textContent = T().pts(state.score);
     $('hint-btn').disabled = false;
     $('skip-btn').disabled = false;
     $('next-btn').hidden = true;
@@ -397,6 +478,32 @@
     // 出題時、少し引いた視点にする
     const pov = globe.pointOfView();
     if (pov.altitude < 1.8) globe.pointOfView({ altitude: 2.2 }, 600);
+  }
+
+  // 「〇〇を探して！」/「Find 〇〇!」
+  function renderQuestion() {
+    const q = $('question');
+    q.textContent = '';
+    if (!state.target) return;
+    const name = nameOf(state.target);
+    T().question(name).forEach((part) => {
+      if (part === name) {
+        const span = document.createElement('span');
+        span.id = 'q-name';
+        span.className = lang;
+        span.textContent = name;
+        q.append(span);
+      } else {
+        q.append(part);
+      }
+    });
+  }
+
+  function renderHint() {
+    const t = state.target;
+    if (!t || state.hints === 0) { $('hint-text').textContent = ''; return; }
+    const c = T()[t.continent] || t.continent;
+    $('hint-text').textContent = state.hints === 1 ? T().hint1(c) : T().hint2(c);
   }
 
   function renderLives() {
@@ -426,15 +533,15 @@
     const t = state.target;
     const pts = correct ? calcPoints(state.elapsed) : 0;
     state.score += pts;
-    state.results.push({ name: t.ja, correct, time: state.elapsed, pts });
+    state.results.push({ country: t, correct, time: state.elapsed, pts });
 
     state.marks.set(t.id, correct ? 'good' : 'reveal');
     state.tags = state.tags.filter((g) => g.id !== t.id);
-    state.tags.push({ id: t.id, lat: t.lat, lng: t.lng, text: t.ja, cls: correct ? 'good' : 'reveal' });
+    state.tags.push({ id: t.id, lat: t.lat, lng: t.lng, text: nameOf(t), cls: correct ? 'good' : 'reveal' });
     setTags();
     refreshPolygons();
 
-    $('score').textContent = `${state.score}点`;
+    $('score').textContent = T().pts(state.score);
     $('hint-btn').disabled = true;
     $('skip-btn').disabled = true;
 
@@ -444,14 +551,14 @@
 
     if (correct) {
       Sound.correct();
-      toast(`正解！ +${pts}点（${fmtTime(state.elapsed)}）`, 'good', 2500);
+      toast(T().correct(pts, fmtTime(state.elapsed)), 'good', 2500);
     } else {
       Sound.reveal();
-      toast(`正解は「${t.ja}」でした`, 'warn', 2500);
+      toast(T().answerWas(nameOf(t)), 'warn', 2500);
     }
 
     const last = state.index >= TOTAL_QUESTIONS - 1;
-    $('next-btn').textContent = last ? '結果を見る' : '次の問題へ';
+    $('next-btn').textContent = last ? T().seeResult : T().next;
     $('next-btn').hidden = false;
   }
 
@@ -468,7 +575,7 @@
 
     if (!feature) {
       Sound.sea();
-      toast('そこは海です', '', 1200);
+      toast(T().sea, '', 1200);
       return;
     }
 
@@ -479,16 +586,16 @@
     Sound.wrong();
     state.marks.set(p.id, 'bad');
     state.tags = state.tags.filter((g) => g.id !== p.id);
-    state.tags.push({ id: p.id, lat: coords ? coords.lat : p.lat, lng: coords ? coords.lng : p.lng, text: p.ja, cls: 'bad' });
+    state.tags.push({ id: p.id, lat: coords ? coords.lat : p.lat, lng: coords ? coords.lng : p.lng, text: nameOf(p), cls: 'bad' });
     setTags();
     refreshPolygons();
 
     if (state.misses >= MAX_MISSES) {
       setTimeout(() => finishQuestion(false), 500);
-      toast(`そこは「${p.ja}」です`, 'bad', 1000);
+      toast(T().thatIs(nameOf(p)), 'bad', 1000);
       return;
     }
-    toast(`ちがいます！ そこは「${p.ja}」です`, 'bad');
+    toast(T().wrong(nameOf(p)), 'bad');
 
     // 少し経ったら赤い表示を消す
     const qIndex = state.index;
@@ -506,10 +613,8 @@
     const t = state.target;
     state.hints++;
     Sound.hint();
-    if (state.hints === 1) {
-      $('hint-text').textContent = `ヒント: ${t.continent}の国です`;
-    } else {
-      $('hint-text').textContent = `ヒント: ${t.continent}の国です ／ このあたりにあります`;
+    renderHint();
+    if (state.hints >= 2) {
       // 正確な位置から少しずらして近くまで移動
       const jitter = () => (Math.random() - 0.5) * 12;
       globe.pointOfView({ lat: t.lat + jitter(), lng: t.lng + jitter(), altitude: 1.3 }, 1200);
@@ -522,40 +627,18 @@
     const correctCount = state.results.filter((r) => r.correct).length;
     const totalTime = state.results.reduce((s, r) => s + r.time, 0);
 
-    $('final-score').textContent = state.score;
+    $('final-score').textContent = T().pts(state.score);
     $('final-correct').textContent = `${correctCount}/${TOTAL_QUESTIONS}`;
     $('final-time').textContent = fmtTime(totalTime);
 
     const rate = state.score / (TOTAL_QUESTIONS * 1000);
-    $('final-comment').textContent =
-      rate >= 0.85 ? '🌏 地理マスター！すばらしい！' :
-      rate >= 0.65 ? '✈️ 世界旅行の達人！' :
-      rate >= 0.45 ? '🧭 なかなかの冒険家！' :
-      rate >= 0.25 ? '🗺 もう少しで一人前！' :
-      '🎒 地球儀をくるくる回して覚えよう！';
+    const rank = rate >= 0.85 ? 0 : rate >= 0.65 ? 1 : rate >= 0.45 ? 2 : rate >= 0.25 ? 3 : 4;
 
+    // ベストスコアは表示より先に判定・保存しておく (言語切り替え時に再描画するため)
     const best = loadBest();
-    const label = `${DIFFICULTY[state.difficulty].label}・${state.region === 'all' ? '全世界' : state.region}`;
-    if (!best || state.score > best.score) {
-      saveBest({ score: state.score, time: totalTime });
-      $('best-score').textContent = best ? `🎉 ベスト更新！（${label}）前回のベスト: ${best.score}点` : `ベストスコア（${label}）: ${state.score}点`;
-    } else {
-      $('best-score').textContent = `ベストスコア（${label}）: ${best.score}点 / ${fmtTime(best.time)}`;
-    }
-
-    const list = $('result-list');
-    list.innerHTML = '';
-    state.results.forEach((r, i) => {
-      const li = document.createElement('li');
-      const name = document.createElement('span');
-      name.className = r.correct ? 'ok' : 'ng';
-      name.textContent = `${r.correct ? '○' : '×'} Q${i + 1} ${r.name}`;
-      const pts = document.createElement('span');
-      pts.className = 'pts';
-      pts.textContent = `${fmtTime(r.time)} / ${r.pts}点`;
-      li.append(name, pts);
-      list.append(li);
-    });
+    state.lastResult = { rank, totalTime, correctCount, prevBest: best, isNewBest: !best || state.score > best.score };
+    if (state.lastResult.isNewBest) saveBest({ score: state.score, time: totalTime });
+    renderResultTexts();
 
     state.marks.clear();
     state.tags = [];
@@ -566,6 +649,70 @@
     show('result');
     Sound.fanfare();
   }
+
+  function renderResultTexts() {
+    const r = state.lastResult;
+    if (!r) return;
+    const tr = T();
+    $('final-score').textContent = tr.pts(state.score);
+    $('final-time').textContent = fmtTime(r.totalTime);
+    $('final-comment').textContent = tr.comments[r.rank];
+    const label = tr.modeLabel(tr[state.difficulty], tr[state.region]);
+    if (r.isNewBest) {
+      $('best-score').textContent = r.prevBest ? tr.newBest(label, r.prevBest.score) : tr.best(label, state.score);
+    } else {
+      $('best-score').textContent = tr.best(label, r.prevBest.score, fmtTime(r.prevBest.time));
+    }
+
+    const list = $('result-list');
+    list.innerHTML = '';
+    state.results.forEach((res, i) => {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = res.correct ? 'ok' : 'ng';
+      name.textContent = `${res.correct ? '○' : '×'} Q${i + 1} ${nameOf(res.country)}`;
+      const pts = document.createElement('span');
+      pts.className = 'pts';
+      pts.textContent = `${fmtTime(res.time)} / ${tr.pts(res.pts)}`;
+      li.append(name, pts);
+      list.append(li);
+    });
+  }
+
+  // 画面上のテキストを現在の言語で描き直す
+  function applyLanguage() {
+    const tr = T();
+    document.documentElement.lang = lang;
+    document.title = tr.docTitle;
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const v = tr[el.dataset.i18n];
+      if (typeof v === 'string') el.innerHTML = v;
+    });
+    document.querySelectorAll('#lang-switch button').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
+    $('sound-btn').setAttribute('aria-label', tr.soundLabel);
+    $('score').textContent = tr.pts(state.score);
+    renderQuestion();
+    renderHint();
+    if (state.answered) {
+      const last = state.index >= TOTAL_QUESTIONS - 1;
+      $('next-btn').textContent = last ? tr.seeResult : tr.next;
+    }
+    // 地球上の国名ラベル
+    state.tags.forEach((g) => {
+      const f = features.find((x) => x.properties.id === g.id);
+      if (f) g.text = nameOf(f.properties);
+    });
+    setTags();
+    renderResultTexts();
+  }
+
+  $('lang-switch').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-lang]');
+    if (!btn || btn.dataset.lang === lang) return;
+    lang = btn.dataset.lang;
+    try { localStorage.setItem('kunisagashi.lang', lang); } catch (err) { /* noop */ }
+    applyLanguage();
+  });
 
   // ---------------------------------------------------------------- イベント
   globe
@@ -630,6 +777,7 @@
   setTimeout(() => { $('start-btn').disabled = false; $('loading').hidden = true; }, 8000);
 
   refreshPolygons();
+  applyLanguage();
 
   // テスト用
   window.__game = { state, globe, handleClick, features };

@@ -13,36 +13,40 @@
   <!-- タイトル画面 -->
   <section id="title-screen" class="overlay">
     <div class="panel">
-      <h1>国探し</h1>
-      <p class="lead">地球をくるくる回して、お題の国を見つけよう！<br>全10問・タイムも計測します</p>
+      <div class="lang-switch" id="lang-switch">
+        <button data-lang="ja">日本語</button>
+        <button data-lang="en">English</button>
+      </div>
+      <h1 data-i18n="title">国探し</h1>
+      <p class="lead" data-i18n="lead">地球をくるくる回して、お題の国を見つけよう！<br>全10問・タイムも計測します</p>
 
-      <h2>難易度</h2>
+      <h2 data-i18n="difficulty">難易度</h2>
       <div class="choices" id="difficulty">
         <button data-value="easy" class="choice selected">
-          <strong>かんたん</strong><span>国境線あり・有名な国</span>
+          <strong data-i18n="easy">かんたん</strong><span data-i18n="easyDesc">国境線あり・有名な国</span>
         </button>
         <button data-value="normal" class="choice">
-          <strong>ふつう</strong><span>国境線なし・有名な国〜中くらいの国</span>
+          <strong data-i18n="normal">ふつう</strong><span data-i18n="normalDesc">国境線なし・有名な国〜中くらいの国</span>
         </button>
         <button data-value="hard" class="choice">
-          <strong>むずかしい</strong><span>国境線なし・マニアックな国</span>
+          <strong data-i18n="hard">むずかしい</strong><span data-i18n="hardDesc">国境線なし・マニアックな国</span>
         </button>
       </div>
 
-      <h2>地域</h2>
+      <h2 data-i18n="region">地域</h2>
       <div class="choices small" id="region">
-        <button data-value="all" class="choice selected">全世界</button>
-        <button data-value="アジア" class="choice">アジア</button>
-        <button data-value="ヨーロッパ" class="choice">ヨーロッパ</button>
-        <button data-value="アフリカ" class="choice">アフリカ</button>
-        <button data-value="北アメリカ" class="choice">北アメリカ</button>
-        <button data-value="南アメリカ" class="choice">南アメリカ</button>
-        <button data-value="オセアニア" class="choice">オセアニア</button>
+        <button data-value="all" class="choice selected" data-i18n="all">全世界</button>
+        <button data-value="asia" class="choice" data-i18n="asia">アジア</button>
+        <button data-value="europe" class="choice" data-i18n="europe">ヨーロッパ</button>
+        <button data-value="africa" class="choice" data-i18n="africa">アフリカ</button>
+        <button data-value="namerica" class="choice" data-i18n="namerica">北アメリカ</button>
+        <button data-value="samerica" class="choice" data-i18n="samerica">南アメリカ</button>
+        <button data-value="oceania" class="choice" data-i18n="oceania">オセアニア</button>
       </div>
 
-      <button id="start-btn" class="primary">スタート</button>
-      <p class="howto">ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答</p>
-      <p id="loading" class="howto">地球を読み込み中…</p>
+      <button id="start-btn" class="primary" data-i18n="start">スタート</button>
+      <p class="howto" data-i18n="howto">ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答</p>
+      <p id="loading" class="howto" data-i18n="loading">地球を読み込み中…</p>
     </div>
   </section>
 
@@ -54,14 +58,14 @@
         <span id="timer">⏱ 0.0秒</span>
         <span id="score">0点</span>
       </div>
-      <div class="question"><span id="q-name">アメリカ合衆国</span>を探して！</div>
+      <div class="question" id="question"></div>
       <div id="hint-text" class="hint-text"></div>
       <div id="lives" class="lives"></div>
     </div>
     <div class="bottom">
-      <button id="hint-btn" class="sub">ヒント</button>
-      <button id="skip-btn" class="sub">パス</button>
-      <button id="quit-btn" class="sub ghost">やめる</button>
+      <button id="hint-btn" class="sub" data-i18n="hint">ヒント</button>
+      <button id="skip-btn" class="sub" data-i18n="skip">パス</button>
+      <button id="quit-btn" class="sub ghost" data-i18n="quit">やめる</button>
     </div>
     <div id="toast" class="toast" hidden></div>
     <button id="next-btn" class="primary next" hidden>次の問題へ</button>
@@ -70,18 +74,18 @@
   <!-- 結果画面 -->
   <section id="result-screen" class="overlay" hidden>
     <div class="panel">
-      <h1>結果</h1>
-      <div class="total"><span id="final-score">0</span>点</div>
+      <h1 data-i18n="result">結果</h1>
+      <div class="total" id="final-score">0</div>
       <div class="stats">
-        <div><small>正解</small><b id="final-correct">0/10</b></div>
-        <div><small>合計タイム</small><b id="final-time">0.0秒</b></div>
+        <div><small data-i18n="correctCount">正解</small><b id="final-correct">0/10</b></div>
+        <div><small data-i18n="totalTime">合計タイム</small><b id="final-time">0.0秒</b></div>
       </div>
       <p id="final-comment" class="lead"></p>
       <p id="best-score" class="howto"></p>
       <ol id="result-list" class="result-list"></ol>
       <div class="row">
-        <button id="retry-btn" class="primary">もう一度</button>
-        <button id="menu-btn" class="sub">タイトルへ</button>
+        <button id="retry-btn" class="primary" data-i18n="retry">もう一度</button>
+        <button id="menu-btn" class="sub" data-i18n="menu">タイトルへ</button>
       </div>
     </div>
   </section>
