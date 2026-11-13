@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>icon</title>
+<!--
+  アプリのアイコン・起動画面の元画像 (assets/) を描画するページ。
+  ?mode=only (1024 アイコン) / fg (アダプティブアイコンの前景) / bg (背景) / splash (2732 起動画面)
+-->
+<style>
+  html, body { margin: 0; overflow: hidden; background: transparent; }
+  #stage { position: relative; }
+  .bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, #12306a 0%, #071229 55%, #020610 100%); }
+  .stars { position: absolute; inset: 0; }
+  #globe { position: absolute; }
+  svg.lens { position: absolute; overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="../vendor/globe.gl.min.js"></script>
+<script>
+  const mode = new URLSearchParams(location.search).get('mode') || 'only';
+  const SIZE = mode === 'splash' ? 2732 : 1024;
+  // 地球の大きさと位置 (画像の一辺に対する割合)
+  const G = { only: 0.72, fg: 0.4, bg: 0, splash: 0.36 }[mode];
+  const stage = document.getElementById('stage');
+  stage.style.width = stage.style.height = SIZE + 'px';
+  document.body.style.width = document.body.style.height = SIZE + 'px';
+
+  if (mode === 'only' || mode === 'bg') {
+    const bg = document.createElement('div');
+    bg.className = 'bg';
+    stage.append(bg);
+    // 星
+    const c = document.createElement('canvas');
+    c.className = 'stars';
+    c.width = c.height = SIZE;
+    const x = c.getContext('2d');
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 90; i++) {
+      x.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.6})`;
+      x.beginPath();
+      x.arc(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * 2.2, 0, Math.PI * 2);
+      x.fill();
+    }
+    stage.append(c);
+  }
+  if (mode === 'splash') document.body.style.background = '#000';
+
+  if (G) {
+    const gs = Math.round(SIZE * G * 1.25); // 大気の光が切れないよう、描画領域は地球より少し大きく
+    const el = document.createElement('div');
+    el.id = 'globe';
+    el.style.width = el.style.height = gs + 'px';
+    el.style.left = (SIZE - gs) / 2 + 'px';
+    el.style.top = (SIZE - gs) / 2 + 'px';
+    stage.append(el);
+    const globe = new Globe(el, { rendererConfig: { preserveDrawingBuffer: true, alpha: true } })
+      .width(gs).height(gs)
+      .backgroundColor('rgba(0,0,0,0)')
+      .globeImageUrl('../img/earth-blue-marble.jpg')
+      .bumpImageUrl('../img/earth-topology.png')
+      .atmosphereColor('#7cc4ff').atmosphereAltitude(0.16)
+      .pointOfView({ lat: 22, lng: 120, altitude: 1.5 });
+    globe.renderer().setPixelRatio(1);
+    globe.controls().enableZoom = false;
+    // 画面の大きさから、カメラの距離を地球がちょうど G の大きさに写るよう調整する
+    // (altitude は地球の半径を 1 とした高さ。視野角 50°)
+    const fov = 50 * Math.PI / 180;
+    const ratio = G / (G * 1.25); // 描画領域に対する地球の直径の割合 = 0.8
+    const dist = 1 / Math.sin(Math.atan(ratio * Math.tan(fov / 2)));
+    globe.pointOfView({ lat: 22, lng: 120, altitude: dist - 1 });
+
+    // 虫めがね (地球の右下に重ねる)
+    if (mode !== 'splash') {
+      const r = SIZE * G * 0.25;
+      const cx = SIZE / 2 + SIZE * G * 0.22;
+      const cy = SIZE / 2 + SIZE * G * 0.22;
+      const w = Math.round(SIZE * G * 0.08);
+      const svg = `<svg class="lens" width="${SIZE}" height="${SIZE}" style="left:0;top:0">
+        <defs><radialGradient id="g" cx="40%" cy="35%"><stop offset="0" stop-color="#ffffff" stop-opacity=".45"/><stop offset="1" stop-color="#9fe3ff" stop-opacity=".12"/></radialGradient></defs>
+        <line x1="${cx + r * 0.68}" y1="${cy + r * 0.68}" x2="${cx + r * 1.38}" y2="${cy + r * 1.38}" stroke="#2a1a0a" stroke-width="${w * 1.25}" stroke-linecap="round"/>
+        <line x1="${cx + r * 0.7}" y1="${cy + r * 0.7}" x2="${cx + r * 1.35}" y2="${cy + r * 1.35}" stroke="#ffc83d" stroke-width="${w}" stroke-linecap="round"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#g)" stroke="#0b1a33" stroke-width="${w * 0.95}"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffffff" stroke-width="${w * 0.62}"/>
+      </svg>`;
+      stage.insertAdjacentHTML('beforeend', svg);
+    }
+    globe.onGlobeReady(() => setTimeout(() => { window.__ready = true; }, 1500));
+  } else {
+    window.__ready = true;
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "earth",
+  "version": "1.0.0",
+  "private": true,
+  "description": "国探し リアルな地球を回してお題の国を見つけるゲーム(Web / Android)",
+  "scripts": {
+    "build": "node scripts/build-web.js",
+    "build:app": "APP_BUILD=1 node scripts/build-web.js",
+    "android:sync": "npm run build:app && npx cap sync android",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.2.1",
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  }
+}

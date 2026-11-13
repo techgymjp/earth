@@ -347,3 +347,36 @@ html[lang="en"] h1 { letter-spacing: 0.02em; font-size: 38px; }
   .lang-switch { margin: -4px -4px 0 0; }
   .total { font-size: 40px; }
 }
+
+/* タイトル画面の下: バージョン・プライバシーポリシー・広告の設定 */
+.legal { margin-top: 10px; font-size: 11px; color: var(--muted); }
+.legal a { color: var(--muted); }
+#build-info:not(:empty)::after { content: '｜'; }
+
+/* 一時停止: 地球を隠す */
+.overlay.pause { background: rgb(3, 7, 18); z-index: 12; align-items: center; }
+.overlay.pause h1 { font-size: 32px; }
+
+/* リワード広告でハート回復 */
+.revive {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 48px);
+  max-width: 360px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(10, 18, 36, 0.95);
+  border: 1px solid var(--warn);
+  text-align: center;
+  z-index: 8;
+}
+.revive-title { margin: 0; font-size: 18px; font-weight: bold; }
+.revive-note { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.revive .primary { margin-top: 14px; font-size: 16px; padding: 11px 24px; }
+.revive .sub { display: block; margin: 10px auto 0; }
+
+/* アプリでバナー広告を出している画面は、下をあける */
+html.banner .overlay { padding-top: 60px; padding-bottom: 70px; }
+html.banner .sound-btn { top: 10px; left: 10px; right: auto; bottom: auto; }

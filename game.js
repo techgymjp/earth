@@ -50,8 +50,15 @@
       newBest: (label, prev) => `🎉 ベスト更新！（${label}）前回のベスト: ${prev}点`,
       best: (label, score, time) => `ベストスコア（${label}）: ${score}点${time ? ' / ' + time : ''}`,
       soundLabel: 'サウンドのオン/オフ',
+      privacy: 'プライバシーポリシー', privacyUrl: 'https://techgym.jp/privacy-policy/', adSettings: '広告の設定',
+      pause: '一時停止', paused: '一時停止中', resume: '再開',
+      reviveTitle: 'ハートがなくなりました',
+      reviveNote: (left) => `広告を見ると、ハートが1つ回復してこの問題を続けられます（あと${left}回）`,
+      reviveWatch: '▶ 広告を見て回復', reviveSkip: (s) => `あきらめる（${s}）`, reviveLoading: '広告を読み込み中…',
+      reviveFail: '広告を読み込めませんでした', revived: 'ハートが1つ回復しました！',
+      revivesUsed: (n) => `ハート回復 ${n}回`,
       share: 'シェア', copy: 'コピー', postX: '𝕏 でポスト', copied: 'コピーしました',
-      shareText: (mode, score, correct, time) => `🌏 国探し【${mode}】で ${score}点！（${correct}/10問正解・タイム ${time}）\n#国探し`,
+      shareText: (mode, score, correct, time, revives) => `🌏 国探し【${mode}】で ${score}点！（${correct}/10問正解・タイム ${time}${revives ? `・ハート回復${revives}回` : ''}）\n#国探し`,
     },
     en: {
       docTitle: 'Find the Country | Spin the globe and find the country',
@@ -85,8 +92,15 @@
       newBest: (label, prev) => `🎉 New best! (${label}) Previous best: ${prev} pts`,
       best: (label, score, time) => `Best score (${label}): ${score} pts${time ? ' / ' + time : ''}`,
       soundLabel: 'Toggle sound',
+      privacy: 'Privacy Policy', privacyUrl: 'https://techgym.jp/privacy-policy-en/', adSettings: 'Ad settings',
+      pause: 'Pause', paused: 'Paused', resume: 'Resume',
+      reviveTitle: 'Out of hearts',
+      reviveNote: (left) => `Watch an ad to get one heart back and keep trying this question (${left} left)`,
+      reviveWatch: '▶ Watch ad to recover', reviveSkip: (s) => `Give up (${s})`, reviveLoading: 'Loading ad…',
+      reviveFail: "Couldn't load an ad", revived: 'One heart recovered!',
+      revivesUsed: (n) => `Hearts recovered: ${n}`,
       share: 'Share', copy: 'Copy', postX: 'Post on 𝕏', copied: 'Copied!',
-      shareText: (mode, score, correct, time) => `🌏 Find the Country [${mode}]: ${score} pts! (${correct}/10 correct, ${time})\n#FindTheCountry`,
+      shareText: (mode, score, correct, time, revives) => `🌏 Find the Country [${mode}]: ${score} pts! (${correct}/10 correct, ${time}${revives ? `, ${revives} heart${revives > 1 ? 's' : ''} recovered` : ''})\n#FindTheCountry`,
     },
   };
 
@@ -99,6 +113,10 @@
   if (!I18N[lang]) lang = 'en';
   const T = () => I18N[lang];
   const nameOf = (p) => (lang === 'ja' ? p.ja : p.en);
+
+  // Android アプリ(Capacitor)で動いているか。Web 版では Capacitor がないので何もしない
+  const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const plugin = (name) => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null);
 
   // ---------------------------------------------------------------- サウンド (効果音 + BGM)
   // 効果音・BGM はロード中に OfflineAudioContext で音声データとして事前に作っておき、
@@ -324,6 +342,9 @@
         if (master) master.gain.setTargetAtTime(enabled ? 1 : 0, ctx.currentTime, 0.05);
         return enabled;
       },
+      // 広告の表示中・アプリを裏に回したときに音を止める
+      suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); },
+      resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); },
       play(name) {
         if (!ctx || !enabled || !buffers[name] || ctx.state !== 'running') return;
         const src = ctx.createBufferSource();
@@ -333,6 +354,7 @@
       },
     };
   })();
+  window.GameSound = Sound; // ads.js から音を止める・再開するため
   const sfx = (name) => () => Sound.play(name);
   Object.assign(Sound, {
     tap: sfx('tap'), select: sfx('select'), question: sfx('question'), correct: sfx('correct'),
@@ -478,6 +500,10 @@
     misses: 0,
     hints: 0,
     answered: false,
+    paused: false,     // 一時停止中
+    pausedAt: 0,       // タイマーを止めた時刻 (0 なら動いている)
+    reviving: false,   // ハート回復の案内中
+    revives: 0,        // このゲームでハートを回復した回数
     // 表示
     marks: new Map(),  // feature.id -> 'good' | 'bad' | 'reveal'
     tags: [],
@@ -547,12 +573,63 @@
 
   // ---------------------------------------------------------------- 画面切り替え
   function show(screen) {
+    state.screen = screen;
     $('title-screen').hidden = screen !== 'title';
-    $('hud').hidden = screen !== 'play';
+    $('hud').hidden = screen !== 'play' && screen !== 'pause';
+    $('pause-screen').hidden = screen !== 'pause';
     $('result-screen').hidden = screen !== 'result';
+    updateBanner();
+  }
+
+  // ---------------------------------------------------------------- 広告 (Android アプリのみ)
+  // バナー: タイトル・一時停止・結果画面の下中央だけ (プレイ中は地球の操作と重なるので出さない)
+  function updateBanner() {
+    const want = Ads.available && ['title', 'pause', 'result'].includes(state.screen);
+    Ads.setBanner(want);
+    document.documentElement.classList.toggle('banner', want);
+  }
+  // 全画面広告: プレイ開始・もう一度・タイトルへ戻る・一時停止からの再開のたびに毎回出す
+  let adBusy = false;
+  async function withInterstitial(next) {
+    if (adBusy) return;
+    if (Ads.available) {
+      adBusy = true;
+      await Ads.showInterstitial(3000);
+      adBusy = false;
+    }
+    next();
+  }
+
+  // ---------------------------------------------------------------- タイマーの停止・再開
+  function stopTimer() {
+    if (!state.pausedAt) state.pausedAt = performance.now();
+  }
+  function startTimer() {
+    if (!state.pausedAt) return;
+    state.startedAt += performance.now() - state.pausedAt;
+    state.pausedAt = 0;
+  }
+
+  // ---------------------------------------------------------------- 一時停止
+  function pauseGame() {
+    if (state.screen !== 'play' || state.paused) return;
+    state.paused = true;
+    stopTimer();
+    show('pause');
+  }
+  function resumeGame() {
+    if (!state.paused) return;
+    withInterstitial(() => {
+      state.paused = false;
+      show('play');
+      if (!state.reviving) startTimer();
+    });
   }
 
   function toTitle() {
+    closeRevive();
+    state.paused = false;
+    state.pausedAt = 0;
     state.playing = false;
     state.answered = false;
     state.marks.clear();
@@ -597,6 +674,8 @@
     state.score = 0;
     state.results = [];
     state.lastResult = null;
+    state.revives = 0;
+    state.paused = false;
     state.playing = true;
     // かんたんモードだけ国境線入りの地球にする
     const tex = diff.borders && borderTexture ? borderTexture : PLAIN_TEXTURE;
@@ -613,6 +692,7 @@
     state.answered = false;
     state.elapsed = 0;
     state.startedAt = performance.now();
+    state.pausedAt = 0;
     state.marks.clear();
     state.tags = [];
     setTags();
@@ -666,7 +746,8 @@
   }
 
   function currentElapsed() {
-    return state.answered ? state.elapsed : performance.now() - state.startedAt;
+    if (state.answered) return state.elapsed;
+    return (state.pausedAt || performance.now()) - state.startedAt;
   }
 
   let lastTimerText = '';
@@ -686,8 +767,9 @@
   }
 
   function finishQuestion(correct) {
+    state.elapsed = currentElapsed();
     state.answered = true;
-    state.elapsed = performance.now() - state.startedAt;
+    state.pausedAt = 0;
     const t = state.target;
     const pts = correct ? calcPoints(state.elapsed) : 0;
     state.score += pts;
@@ -721,7 +803,7 @@
   }
 
   function handleClick(feature, coords) {
-    if (!state.playing || state.answered) return;
+    if (!state.playing || state.answered || state.paused || state.reviving) return;
     const t = state.target;
     const hitTarget = feature && feature.properties.id === t.id;
     const nearTiny = coords && t.area < TINY_AREA && distanceKm(coords, t) < TINY_RADIUS_KM;
@@ -749,8 +831,10 @@
     refreshPolygons();
 
     if (state.misses >= MAX_MISSES) {
+      toast(T().thatIs(nameOf(p)), 'bad', 1500);
+      // アプリでは、広告を見てハートを回復できる (リワード広告)
+      if (offerRevive()) return;
       setTimeout(() => finishQuestion(false), 500);
-      toast(T().thatIs(nameOf(p)), 'bad', 1000);
       return;
     }
     toast(T().wrong(nameOf(p)), 'bad');
@@ -766,8 +850,79 @@
     }, 1800);
   }
 
+  // ---------------------------------------------------------------- リワード広告: ハート回復 (アプリのみ・1 ゲーム 3 回まで)
+  // ハートを全部失ったときだけ「広告を見てハートを1つ回復」を出す。考える時間に入らないよう、その間はタイマーを止める。
+  // 押した国 (失敗の様子) を見届けられるよう少し待ってから出し、何もしなければ自動であきらめる
+  const REVIVE_DELAY = 2000;
+  const REVIVE_WAIT = 6;
+  const REVIVE_MAX = 3;
+  const revive = { timer: null, countdown: null, busy: false };
+  function offerRevive() {
+    if (!Ads.canReward || state.revives >= REVIVE_MAX) return false;
+    state.reviving = true;
+    stopTimer();
+    $('hint-btn').disabled = true;
+    $('skip-btn').disabled = true;
+    const qIndex = state.index;
+    revive.timer = setTimeout(() => { if (state.index === qIndex && state.reviving) showRevive(); }, REVIVE_DELAY);
+    return true;
+  }
+  function showRevive() {
+    revive.busy = false;
+    let left = REVIVE_WAIT;
+    $('revive-title').textContent = T().reviveTitle;
+    $('revive-note').textContent = T().reviveNote(REVIVE_MAX - state.revives);
+    $('revive-watch').disabled = false;
+    $('revive-watch').textContent = T().reviveWatch;
+    $('revive-skip').textContent = T().reviveSkip(left);
+    $('revive').hidden = false;
+    revive.countdown = setInterval(() => {
+      if (revive.busy || state.paused) return;
+      left--;
+      $('revive-skip').textContent = T().reviveSkip(Math.max(0, left));
+      if (left <= 0) giveUp();
+    }, 1000);
+  }
+  function closeRevive() {
+    clearTimeout(revive.timer);
+    clearInterval(revive.countdown);
+    revive.timer = revive.countdown = null;
+    $('revive').hidden = true;
+    state.reviving = false;
+  }
+  function giveUp() {
+    if (!state.reviving) return;
+    closeRevive();
+    finishQuestion(false);
+  }
+  async function watchRevive() {
+    if (!state.reviving || revive.busy) return;
+    revive.busy = true;
+    $('revive-watch').disabled = true;
+    $('revive-watch').textContent = T().reviveLoading;
+    const result = await Ads.showRewarded();
+    if (!state.reviving) return;
+    if (result === 'unavailable') {
+      $('revive-note').textContent = T().reviveFail;
+      setTimeout(giveUp, 1500);
+      return;
+    }
+    if (result !== 'rewarded') { giveUp(); return; }
+    // 最後まで見たら、ハートを1つ戻してこの問題を続ける
+    closeRevive();
+    state.revives++;
+    state.misses = MAX_MISSES - 1;
+    renderLives();
+    $('hint-btn').disabled = state.hints >= 2;
+    $('skip-btn').disabled = false;
+    if (!state.paused) startTimer();
+    toast(T().revived, 'good', 1800);
+  }
+  $('revive-watch').addEventListener('click', watchRevive);
+  $('revive-skip').addEventListener('click', giveUp);
+
   function useHint() {
-    if (!state.playing || state.answered) return;
+    if (!state.playing || state.answered || state.paused || state.reviving) return;
     const t = state.target;
     state.hints++;
     Sound.hint();
@@ -815,6 +970,8 @@
     $('final-score').textContent = tr.pts(state.score);
     $('final-time').textContent = fmtTime(r.totalTime);
     $('final-comment').textContent = tr.comments[r.rank];
+    $('final-revives').hidden = !state.revives;
+    $('final-revives').textContent = tr.revivesUsed(state.revives);
     const label = tr.modeLabel(tr[state.difficulty], tr[state.region]);
     if (r.isNewBest) {
       $('best-score').textContent = r.prevBest ? tr.newBest(label, r.prevBest.score) : tr.best(label, state.score);
@@ -838,14 +995,14 @@
   }
 
   // ---------------------------------------------------------------- シェア
-  const CAN_SHARE = typeof navigator.share === 'function';
+  const CAN_SHARE = NATIVE || typeof navigator.share === 'function';
   // シェアするURL (ゲームの紹介記事)
   const SHARE_URL = 'https://techgym.jp/column/claude-code-game-earth/';
   const shareUrl = () => SHARE_URL;
   function shareText() {
     const r = state.lastResult;
     const tr = T();
-    return tr.shareText(tr.modeLabel(tr[state.difficulty], tr[state.region]), state.score, r.correctCount, fmtTime(r.totalTime));
+    return tr.shareText(tr.modeLabel(tr[state.difficulty], tr[state.region]), state.score, r.correctCount, fmtTime(r.totalTime), state.revives);
   }
   async function copyText(text) {
     try {
@@ -862,6 +1019,13 @@
   }
   $('share-btn').addEventListener('click', async () => {
     if (!state.lastResult) return;
+    // アプリでは Android の共有メニューを出す
+    if (plugin('Share')) {
+      try {
+        await plugin('Share').share({ title: T().title, text: shareText(), url: shareUrl(), dialogTitle: T().share });
+      } catch (e) { /* キャンセル */ }
+      return;
+    }
     if (CAN_SHARE) {
       try {
         await navigator.share({ title: T().title, text: shareText(), url: shareUrl() });
@@ -889,6 +1053,7 @@
     $('share-btn').textContent = CAN_SHARE ? tr.share : tr.copy;
     document.querySelectorAll('#lang-switch button').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
     $('sound-btn').setAttribute('aria-label', tr.soundLabel);
+    $('privacy-link').href = tr.privacyUrl;
     $('score').textContent = tr.pts(state.score);
     renderQuestion();
     renderHint();
@@ -965,13 +1130,40 @@
     if (btn && !btn.classList.contains('choice') && !btn.disabled) Sound.tap();
   });
 
-  $('start-btn').addEventListener('click', startGame);
-  $('retry-btn').addEventListener('click', startGame);
-  $('menu-btn').addEventListener('click', toTitle);
-  $('quit-btn').addEventListener('click', toTitle);
+  $('start-btn').addEventListener('click', () => withInterstitial(startGame));
+  $('retry-btn').addEventListener('click', () => withInterstitial(startGame));
+  $('menu-btn').addEventListener('click', () => withInterstitial(toTitle));
+  $('quit-btn').addEventListener('click', () => withInterstitial(toTitle));
+  $('pause-btn').addEventListener('click', pauseGame);
+  $('resume-btn').addEventListener('click', resumeGame);
+
+  // 別のアプリやタブに切り替えたら一時停止して音を止める (広告の表示中は広告側が音を止めている)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (!adBusy && !Ads.showing) pauseGame();
+      Sound.suspend();
+    } else if (!Ads.showing) {
+      Sound.resume();
+    }
+  });
+
+  // Android の戻るボタン: プレイ中は一時停止 (一時停止中なら再開)、タイトル・結果画面ではアプリを終了
+  if (plugin('App')) {
+    plugin('App').addListener('backButton', () => {
+      if (adBusy || Ads.showing) return;
+      if (state.screen === 'title' || state.screen === 'result') plugin('App').exitApp();
+      else if (state.paused) resumeGame();
+      else pauseGame();
+    });
+  }
+
+  // タイトル画面の下に、バージョン (アプリ版)・プライバシーポリシー・広告の設定 (EU など) を出す
+  if (window.APP_VERSION && window.APP_VERSION !== 'dev') $('build-info').textContent = window.APP_VERSION;
+  Ads.initDone.then(() => { if (Ads.privacyOptionsRequired) $('ad-privacy').hidden = false; });
+  $('ad-privacy-link').addEventListener('click', (e) => { e.preventDefault(); Ads.showPrivacyOptions(); });
   $('hint-btn').addEventListener('click', useHint);
   $('skip-btn').addEventListener('click', () => {
-    if (!state.playing || state.answered) return;
+    if (!state.playing || state.answered || state.paused || state.reviving) return;
     finishQuestion(false);
   });
   $('next-btn').addEventListener('click', () => {
@@ -1013,7 +1205,10 @@
 
   refreshPolygons();
   applyLanguage();
+  show('title');
 
-  // テスト用
+  // web-only:start
+  // テスト・撮影用 (アプリ用のビルドでは取り除く)
   window.__game = { state, globe, handleClick, features, countryAt };
+  // web-only:end
 })();

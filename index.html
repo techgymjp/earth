@@ -62,6 +62,11 @@
 
       <button id="start-btn" class="primary" data-i18n="start">スタート</button>
       <p class="howto" data-i18n="howto">ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答</p>
+      <div class="legal">
+        <span id="build-info"></span>
+        <a id="privacy-link" href="https://techgym.jp/privacy-policy/" target="_blank" rel="noopener" data-i18n="privacy">プライバシーポリシー</a>
+        <span id="ad-privacy" hidden>｜<a href="#" id="ad-privacy-link" data-i18n="adSettings">広告の設定</a></span>
+      </div>
       <div id="loading" class="loading">
         <div class="load-track"><i id="load-bar"></i></div>
         <span data-i18n="loading">地球を読み込み中…</span>
@@ -84,9 +89,28 @@
     <div class="bottom">
       <button id="hint-btn" class="sub" data-i18n="hint">ヒント</button>
       <button id="skip-btn" class="sub" data-i18n="skip">パス</button>
-      <button id="quit-btn" class="sub ghost" data-i18n="quit">やめる</button>
+      <button id="pause-btn" class="sub ghost" data-i18n="pause">一時停止</button>
     </div>
     <button id="next-btn" class="primary next" hidden>次の問題へ</button>
+
+    <!-- リワード広告でハートを回復 (アプリのみ) -->
+    <div id="revive" class="revive" hidden>
+      <p id="revive-title" class="revive-title"></p>
+      <p id="revive-note" class="revive-note"></p>
+      <button id="revive-watch" class="primary"></button>
+      <button id="revive-skip" class="sub ghost"></button>
+    </div>
+  </section>
+
+  <!-- 一時停止 (地球は隠して、止めている間に探せないようにする) -->
+  <section id="pause-screen" class="overlay pause" hidden>
+    <div class="panel">
+      <h1 data-i18n="paused">一時停止中</h1>
+      <div class="row">
+        <button id="resume-btn" class="primary" data-i18n="resume">再開</button>
+        <button id="quit-btn" class="sub" data-i18n="menu">タイトルへ</button>
+      </div>
+    </div>
   </section>
 
   <!-- 結果画面 -->
@@ -98,6 +122,7 @@
         <div><small data-i18n="correctCount">正解</small><b id="final-correct">0/10</b></div>
         <div><small data-i18n="totalTime">合計タイム</small><b id="final-time">0.0秒</b></div>
       </div>
+      <p id="final-revives" class="howto" hidden></p>
       <p id="final-comment" class="lead"></p>
       <p id="best-score" class="howto"></p>
       <ol id="result-list" class="result-list"></ol>
@@ -115,6 +140,9 @@
   <div id="toast" class="toast" hidden></div>
   <button id="sound-btn" class="sound-btn" aria-label="サウンドのオン/オフ">🔊</button>
 
+  <script src="ads-config.js"></script>
+  <script src="build-info.js"></script>
+  <script src="ads.js"></script>
   <script src="vendor/globe.gl.min.js"></script>
   <script src="data/countries.js"></script>
   <script src="game.js"></script>

@@ -1,0 +1,8 @@
+{
+  "appId": "jp.techgym.earth",
+  "appName": "国探し",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#000000"
+  }
+}
