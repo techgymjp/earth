@@ -839,7 +839,9 @@
 
   // ---------------------------------------------------------------- シェア
   const CAN_SHARE = typeof navigator.share === 'function';
-  const shareUrl = () => location.origin + location.pathname;
+  // シェアするURL (ゲームの紹介記事)
+  const SHARE_URL = 'https://techgym.jp/column/claude-code-game-earth/';
+  const shareUrl = () => SHARE_URL;
   function shareText() {
     const r = state.lastResult;
     const tr = T();
