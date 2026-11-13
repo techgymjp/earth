@@ -19,7 +19,7 @@
   // ---------------------------------------------------------------- 多言語対応
   const I18N = {
     ja: {
-      docTitle: '国探し',
+      docTitle: '国探し｜リアルな地球を回して国を見つけるゲーム',
       title: '国探し',
       lead: '地球をくるくる回して、お題の国を見つけよう！<br>全10問・タイムも計測します',
       difficulty: '難易度', region: '地域',
@@ -54,7 +54,7 @@
       shareText: (mode, score, correct, time) => `🌏 国探し【${mode}】で ${score}点！（${correct}/10問正解・タイム ${time}）\n#国探し`,
     },
     en: {
-      docTitle: 'Find the Country',
+      docTitle: 'Find the Country | Spin the globe and find the country',
       title: 'Find the Country',
       lead: 'Spin the globe and find the country!<br>10 questions — against the clock',
       difficulty: 'Difficulty', region: 'Region',
@@ -864,7 +864,7 @@
     if (!state.lastResult) return;
     if (CAN_SHARE) {
       try {
-        await navigator.share({ title: T().docTitle, text: shareText(), url: shareUrl() });
+        await navigator.share({ title: T().title, text: shareText(), url: shareUrl() });
       } catch (e) { /* キャンセル */ }
     } else {
       copyText(`${shareText()}\n${shareUrl()}`);

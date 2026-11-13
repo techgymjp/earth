@@ -44,3 +44,7 @@ python3 -m http.server 8000
 - `img/` … 地球・星空のテクスチャ（[three-globe](https://github.com/vasturiano/three-globe) のサンプル画像、NASA Blue Marble 由来）
 
 国境データは [Natural Earth](https://www.naturalearthdata.com/)（パブリックドメイン）の 1:50m Admin 0 – Countries を使用しています。
+
+## OGP 画像
+
+`ogp.jpg`（1200×630）は `tools/ogp.html` をブラウザで 1200×630 のウィンドウで開き、スクリーンショットして作っています。

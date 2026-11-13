@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>OGP</title>
+<!-- OGP 画像 (1200x630) の描画用ページ。tools/README の手順で ogp.png に書き出す -->
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #000; }
+  body { font-family: "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", sans-serif; color: #eef3ff; }
+  #globe { position: absolute; left: 430px; top: -85px; width: 800px; height: 800px; }
+  .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 38%, rgba(0,0,0,0) 62%);
+    pointer-events: none;
+  }
+  .text { position: absolute; left: 72px; top: 92px; width: 600px; }
+  h1 {
+    margin: 0; font-size: 150px; line-height: 1.05; letter-spacing: 0.08em; font-weight: 900;
+    background: linear-gradient(90deg, #8fd8ff, #b6ffcf);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .en { margin: 8px 0 0 6px; font-size: 30px; letter-spacing: 0.12em; color: #9fb0d0; font-family: sans-serif; }
+  .lead { margin: 34px 0 0 4px; font-size: 34px; font-weight: bold; line-height: 1.5; }
+  .card {
+    display: inline-block; margin: 34px 0 0 4px; padding: 14px 28px; border-radius: 18px;
+    background: rgba(10, 18, 36, 0.85); border: 2px solid rgba(140, 180, 255, 0.35); font-size: 30px;
+  }
+  .card b { color: #ffc83d; font-size: 38px; margin-right: 6px; }
+  .tag {
+    padding: 4px 14px; border-radius: 999px; background: rgba(0,0,0,0.7); border: 2px solid #3ddc84;
+    color: #3ddc84; font-size: 22px; font-weight: bold; white-space: nowrap; transform: translate(-50%, -150%);
+  }
+</style>
+</head>
+<body>
+  <div id="globe"></div>
+  <div class="shade"></div>
+  <div class="text">
+    <h1>国探し</h1>
+    <div class="en">FIND THE COUNTRY</div>
+    <div class="lead">リアルな地球をくるくる回して<br>お題の国を見つけよう！</div>
+    <div class="card"><b>日本</b>を探して！</div>
+  </div>
+  <script src="../vendor/globe.gl.min.js"></script>
+  <script src="../data/countries.js"></script>
+  <script>
+    const japan = window.COUNTRIES.features.filter((f) => f.properties.en === 'Japan');
+    const g = new Globe(document.getElementById('globe'), { rendererConfig: { preserveDrawingBuffer: true } })
+      .width(800).height(800)
+      .globeImageUrl('../img/earth-blue-marble.jpg')
+      .bumpImageUrl('../img/earth-topology.png')
+      .backgroundImageUrl('../img/night-sky.png')
+      .atmosphereColor('#7cc4ff').atmosphereAltitude(0.18)
+      .polygonsData(japan)
+      .polygonCapColor(() => 'rgba(61, 220, 132, 0.6)')
+      .polygonSideColor(() => null)
+      .polygonStrokeColor(() => '#3ddc84')
+      .polygonAltitude(0.01)
+      .htmlElementsData([{ lat: 36.5, lng: 138.5 }])
+      .htmlElement(() => { const el = document.createElement('div'); el.className = 'tag'; el.textContent = '正解！'; return el; })
+      .pointOfView({ lat: 28, lng: 125, altitude: 1.55 });
+    g.controls().enableZoom = false;
+    g.onGlobeReady(() => setTimeout(() => { window.__ready = true; }, 1500));
+  </script>
+</body>
+</html>
