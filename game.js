@@ -364,6 +364,7 @@
   // ---------------------------------------------------------------- 地球
   const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches;
   const PLAIN_TEXTURE = 'img/earth-blue-marble.jpg';
+  let plainTexture = null;  // 地球のテクスチャ
   let borderTexture = null; // 国境線を描き込んだテクスチャ (かんたんモード用)
 
   const globe = new Globe($('globe'), {
@@ -428,11 +429,32 @@
           }
         }
         c.stroke();
-        canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92);
+        resolve(canvas);
       };
       img.onerror = reject;
       img.src = PLAIN_TEXTURE;
     });
+  }
+
+  // 国境線入りのテクスチャを作り、ロード中に GPU へ送っておく
+  // (スタート時に読み込むと、4096×2048 の画像の展開と転送でしばらく画面が固まるため)
+  function prepareBorderTexture(canvas) {
+    const mat = globe.globeMaterial();
+    plainTexture = mat.map;
+    if (!plainTexture) return;
+    const tex = plainTexture.clone();
+    // clone は画像 (source) を共有するので、国境線の画像用に新しい source を作る
+    tex.source = new plainTexture.source.constructor(canvas);
+    tex.needsUpdate = true;
+    const renderer = globe.renderer();
+    if (renderer.initTexture) {
+      renderer.initTexture(tex);
+    } else {
+      mat.map = tex;
+      renderer.render(globe.scene(), globe.camera());
+      mat.map = plainTexture;
+    }
+    borderTexture = tex;
   }
 
   // ---------------------------------------------------------------- 当たり判定
@@ -594,7 +616,8 @@
     if (adBusy) return;
     if (Ads.available) {
       adBusy = true;
-      await Ads.showInterstitial(3000);
+      // 広告は先読みしてある。まだ読み込めていなければ待たせすぎないよう 1 秒であきらめる
+      await Ads.showInterstitial(1000);
       adBusy = false;
     }
     next();
@@ -678,8 +701,10 @@
     state.paused = false;
     state.playing = true;
     // かんたんモードだけ国境線入りの地球にする
-    const tex = diff.borders && borderTexture ? borderTexture : PLAIN_TEXTURE;
-    if (globe.globeImageUrl() !== tex) globe.globeImageUrl(tex);
+    // (どちらのテクスチャもロード中に GPU へ送ってあるので、差し替えるだけ。読み込み直さない)
+    const mat = globe.globeMaterial();
+    const tex = diff.borders && borderTexture ? borderTexture : plainTexture;
+    if (tex && mat.map !== tex) mat.map = tex;
     controls.autoRotate = false;
     show('play');
     nextQuestion();
@@ -1184,12 +1209,15 @@
   // 地球の画像・国境線の画像・効果音/BGM をすべて準備してからスタートできるようにする
   $('start-btn').disabled = true;
   (async () => {
+    const globeReady = new Promise((resolve) => {
+      globe.onGlobeReady(resolve);
+      setTimeout(resolve, 20000); // 万一イベントが来なくても進める
+    });
     const tasks = [
-      new Promise((resolve) => {
-        globe.onGlobeReady(resolve);
-        setTimeout(resolve, 20000); // 万一イベントが来なくても進める
-      }),
-      buildBorderTexture().then((url) => { borderTexture = url; }).catch((e) => console.warn('border texture', e)),
+      globeReady,
+      Promise.all([globeReady, buildBorderTexture()])
+        .then(([, canvas]) => prepareBorderTexture(canvas))
+        .catch((e) => console.warn('border texture', e)),
       Sound.load().catch((e) => console.warn('sound', e)),
     ];
     let done = 0;
