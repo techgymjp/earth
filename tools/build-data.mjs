@@ -24,6 +24,16 @@ const NOT_QUESTION = new Set([
   'Greenland', 'Jersey', 'Guernsey', 'Isle of Man', 'Aruba', 'Curaçao', 'Sint Maarten',
   'Åland', 'Hong Kong', 'Macao', 'N. Cyprus', 'Somaliland', 'Antarctica', 'W. Sahara',
 ]);
+// 地図データのラベル優先度 (LABELRANK) で難易度を分けると、よく知られた小さめの国まで
+// 「むずかしい (5 以上)」に入ってしまうので、そうした国は「ふつう (4)」に入れる
+const RANK_OVERRIDE = {
+  Netherlands: 4, Hungary: 4, Czechia: 4, Croatia: 4, Serbia: 4, Vatican: 4, Monaco: 4,
+  Singapore: 4, Qatar: 4, Kuwait: 4, Maldives: 4, Palestine: 4, Lebanon: 4,
+  Somalia: 4, 'Costa Rica': 4,
+};
+for (const name of Object.keys(RANK_OVERRIDE)) {
+  if (!src.features.some((f) => f.properties.NAME === name)) throw new Error('RANK_OVERRIDE: unknown ' + name);
+}
 // TYPE が Disputed などでも出題する
 const FORCE_QUESTION = new Set(['Palestine', 'Kosovo', 'Israel']);
 const QUESTION_TYPES = new Set(['Sovereign country', 'Country', 'Sovereignty']);
@@ -76,7 +86,7 @@ const features = src.features.map((f, i) => {
     properties: {
       id: i, en, ja,
       continent: CONTINENT_FIX[p.NAME] || CONTINENT_KEY[p.CONTINENT] || 'other',
-      rank: p.LABELRANK, q,
+      rank: RANK_OVERRIDE[p.NAME] || p.LABELRANK, q,
       lat: r2(p.LABEL_Y), lng: r2(p.LABEL_X),
       area: Math.round(geomArea(f.geometry) * 100) / 100, // 平方度 (目安)
     },
