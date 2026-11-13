@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>国探し</title>
+  <meta name="description" content="リアルな地球をくるくる回して、お題の国を見つけるゲーム">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="globe"></div>
+
+  <!-- タイトル画面 -->
+  <section id="title-screen" class="overlay">
+    <div class="panel">
+      <h1>国探し</h1>
+      <p class="lead">地球をくるくる回して、お題の国を見つけよう！<br>全10問・タイムも計測します</p>
+
+      <h2>難易度</h2>
+      <div class="choices" id="difficulty">
+        <button data-value="easy" class="choice selected">
+          <strong>かんたん</strong><span>国境線あり・有名な国</span>
+        </button>
+        <button data-value="normal" class="choice">
+          <strong>ふつう</strong><span>国境線なし・有名な国〜中くらいの国</span>
+        </button>
+        <button data-value="hard" class="choice">
+          <strong>むずかしい</strong><span>国境線なし・マニアックな国</span>
+        </button>
+      </div>
+
+      <h2>地域</h2>
+      <div class="choices small" id="region">
+        <button data-value="all" class="choice selected">全世界</button>
+        <button data-value="アジア" class="choice">アジア</button>
+        <button data-value="ヨーロッパ" class="choice">ヨーロッパ</button>
+        <button data-value="アフリカ" class="choice">アフリカ</button>
+        <button data-value="北アメリカ" class="choice">北アメリカ</button>
+        <button data-value="南アメリカ" class="choice">南アメリカ</button>
+        <button data-value="オセアニア" class="choice">オセアニア</button>
+      </div>
+
+      <button id="start-btn" class="primary">スタート</button>
+      <p class="howto">ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答</p>
+      <p id="loading" class="howto">地球を読み込み中…</p>
+    </div>
+  </section>
+
+  <!-- プレイ中の表示 -->
+  <section id="hud" hidden>
+    <div class="top">
+      <div class="meta">
+        <span id="q-num">Q1/10</span>
+        <span id="timer">⏱ 0.0秒</span>
+        <span id="score">0点</span>
+      </div>
+      <div class="question"><span id="q-name">アメリカ合衆国</span>を探して！</div>
+      <div id="hint-text" class="hint-text"></div>
+      <div id="lives" class="lives"></div>
+    </div>
+    <div class="bottom">
+      <button id="hint-btn" class="sub">ヒント</button>
+      <button id="skip-btn" class="sub">パス</button>
+      <button id="quit-btn" class="sub ghost">やめる</button>
+    </div>
+    <div id="toast" class="toast" hidden></div>
+    <button id="next-btn" class="primary next" hidden>次の問題へ</button>
+  </section>
+
+  <!-- 結果画面 -->
+  <section id="result-screen" class="overlay" hidden>
+    <div class="panel">
+      <h1>結果</h1>
+      <div class="total"><span id="final-score">0</span>点</div>
+      <div class="stats">
+        <div><small>正解</small><b id="final-correct">0/10</b></div>
+        <div><small>合計タイム</small><b id="final-time">0.0秒</b></div>
+      </div>
+      <p id="final-comment" class="lead"></p>
+      <p id="best-score" class="howto"></p>
+      <ol id="result-list" class="result-list"></ol>
+      <div class="row">
+        <button id="retry-btn" class="primary">もう一度</button>
+        <button id="menu-btn" class="sub">タイトルへ</button>
+      </div>
+    </div>
+  </section>
+
+  <button id="sound-btn" class="sound-btn" aria-label="サウンドのオン/オフ">🔊</button>
+
+  <script src="vendor/globe.gl.min.js"></script>
+  <script src="data/countries.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
