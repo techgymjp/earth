@@ -12,10 +12,10 @@ window.Ads = (() => {
         rewarded: 'ca-app-pub-3940256099942544/5224354917',
         banner: 'ca-app-pub-3940256099942544/6300978111',
       },
-      // 本番の広告ユニット(AdMob の Android アプリ「国探し」)。届いたら入れる(空の種類は出さない)
+      // 本番の広告ユニット(AdMob の Android アプリ「国探し」。空の種類は出さない)
       production: {
         interstitial: 'ca-app-pub-6411535997477460/4493335151',
-        rewarded: '',
+        rewarded: 'ca-app-pub-6411535997477460/1020334867',
         banner: 'ca-app-pub-6411535997477460/6272661540',
       },
     },
