@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>国探し</title>
   <meta name="description" content="リアルな地球をくるくる回して、お題の国を見つけるゲーム">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌏</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -46,7 +47,10 @@
 
       <button id="start-btn" class="primary" data-i18n="start">スタート</button>
       <p class="howto" data-i18n="howto">ドラッグで回転・ホイール/ピンチで拡大縮小・国をクリック/タップで回答</p>
-      <p id="loading" class="howto" data-i18n="loading">地球を読み込み中…</p>
+      <div id="loading" class="loading">
+        <div class="load-track"><i id="load-bar"></i></div>
+        <span data-i18n="loading">地球を読み込み中…</span>
+      </div>
     </div>
   </section>
 
@@ -67,7 +71,6 @@
       <button id="skip-btn" class="sub" data-i18n="skip">パス</button>
       <button id="quit-btn" class="sub ghost" data-i18n="quit">やめる</button>
     </div>
-    <div id="toast" class="toast" hidden></div>
     <button id="next-btn" class="primary next" hidden>次の問題へ</button>
   </section>
 
@@ -83,6 +86,10 @@
       <p id="final-comment" class="lead"></p>
       <p id="best-score" class="howto"></p>
       <ol id="result-list" class="result-list"></ol>
+      <div class="row share-row">
+        <button id="share-btn" class="sub" data-i18n="share">シェア</button>
+        <button id="x-btn" class="sub" data-i18n="postX">𝕏 でポスト</button>
+      </div>
       <div class="row">
         <button id="retry-btn" class="primary" data-i18n="retry">もう一度</button>
         <button id="menu-btn" class="sub" data-i18n="menu">タイトルへ</button>
@@ -90,6 +97,7 @@
     </div>
   </section>
 
+  <div id="toast" class="toast" hidden></div>
   <button id="sound-btn" class="sound-btn" aria-label="サウンドのオン/オフ">🔊</button>
 
   <script src="vendor/globe.gl.min.js"></script>

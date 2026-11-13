@@ -50,6 +50,8 @@
       newBest: (label, prev) => `🎉 ベスト更新！（${label}）前回のベスト: ${prev}点`,
       best: (label, score, time) => `ベストスコア（${label}）: ${score}点${time ? ' / ' + time : ''}`,
       soundLabel: 'サウンドのオン/オフ',
+      share: 'シェア', copy: 'コピー', postX: '𝕏 でポスト', copied: 'コピーしました',
+      shareText: (mode, score, correct, time) => `🌏 国探し【${mode}】で ${score}点！（${correct}/10問正解・タイム ${time}）\n#国探し`,
     },
     en: {
       docTitle: 'Find the Country',
@@ -83,6 +85,8 @@
       newBest: (label, prev) => `🎉 New best! (${label}) Previous best: ${prev} pts`,
       best: (label, score, time) => `Best score (${label}): ${score} pts${time ? ' / ' + time : ''}`,
       soundLabel: 'Toggle sound',
+      share: 'Share', copy: 'Copy', postX: 'Post on 𝕏', copied: 'Copied!',
+      shareText: (mode, score, correct, time) => `🌏 Find the Country [${mode}]: ${score} pts! (${correct}/10 correct, ${time})\n#FindTheCountry`,
     },
   };
 
@@ -96,108 +100,88 @@
   const T = () => I18N[lang];
   const nameOf = (p) => (lang === 'ja' ? p.ja : p.en);
 
-  // ---------------------------------------------------------------- 効果音
+  // ---------------------------------------------------------------- サウンド (効果音 + BGM)
+  // 効果音・BGM はロード中に OfflineAudioContext で音声データとして事前に作っておき、
+  // プレイ中は再生するだけにする (その場で合成しないので、スマホでも音が乱れにくい)。
   const Sound = (() => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const SR = 44100;
     let ctx = null;
+    let master = null;
+    let bgmStarted = false;
     let enabled = true;
     try { enabled = localStorage.getItem('kunisagashi.sound') !== 'off'; } catch (e) { /* noop */ }
+    const buffers = {};
+    let bgmBuffer = null;
 
-    let master = null;
-    function ac() {
-      if (!ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ctx = new AC();
-        master = ctx.createGain();
-        master.gain.value = enabled ? 1 : 0;
-        master.connect(ctx.destination);
-      }
-      if (ctx.state === 'suspended') ctx.resume();
-      return ctx;
-    }
+    const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const N = { C5: 523.25, E5: 659.25, G5: 783.99, A5: 880, B5: 987.77, C6: 1046.5, E6: 1318.5, G6: 1568 };
 
-    // 1音を鳴らす
-    function tone(freq, start, dur, { type = 'sine', vol = 0.2, slideTo = null, attack = 0.005 } = {}) {
-      const c = ac();
-      if (!c || !enabled) return;
-      const t0 = c.currentTime + start;
+    // 1音 (描画先のコンテキストに対して)
+    function tone(c, dest, freq, start, dur, { type = 'sine', vol = 0.2, slideTo = null, attack = 0.012 } = {}) {
       const osc = c.createOscillator();
       const gain = c.createGain();
       osc.type = type;
-      osc.frequency.setValueAtTime(freq, t0);
-      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(vol, t0 + attack);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(gain).connect(master);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.02);
+      osc.frequency.setValueAtTime(freq, start);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, start + dur);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(vol, start + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      gain.gain.linearRampToValueAtTime(0, start + dur + 0.01);
+      osc.connect(gain).connect(dest);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
     }
 
-    const N = { C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, B5: 987.77, C6: 1046.5, E6: 1318.5, G6: 1568 };
-
-    return {
-      get enabled() { return enabled; },
-      get ctx() { return ac(); },
-      get master() { ac(); return master; },
-      toggle() {
-        enabled = !enabled;
-        if (master) master.gain.setTargetAtTime(enabled ? 1 : 0, ctx.currentTime, 0.05);
-        try { localStorage.setItem('kunisagashi.sound', enabled ? 'on' : 'off'); } catch (e) { /* noop */ }
-        return enabled;
-      },
-      unlock() { ac(); },
-      tap() { tone(1200, 0, 0.06, { type: 'triangle', vol: 0.15 }); },
-      select() { tone(900, 0, 0.05, { type: 'triangle', vol: 0.12 }); tone(1350, 0.05, 0.07, { type: 'triangle', vol: 0.12 }); },
-      question() {
-        tone(N.E5, 0, 0.25, { type: 'triangle', vol: 0.18 });
-        tone(N.B5, 0.12, 0.45, { type: 'triangle', vol: 0.18 });
-      },
-      correct() {
-        [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => tone(f, i * 0.07, 0.25, { type: 'square', vol: 0.07 }));
-        tone(N.E6, 0.28, 0.5, { type: 'triangle', vol: 0.15 });
-      },
-      wrong() {
-        tone(220, 0, 0.18, { type: 'sawtooth', vol: 0.09, slideTo: 150 });
-        tone(160, 0.17, 0.3, { type: 'sawtooth', vol: 0.09, slideTo: 100 });
-      },
-      sea() { tone(300, 0, 0.18, { type: 'sine', vol: 0.15, slideTo: 200 }); },
-      hint() { tone(N.A5, 0, 0.12, { type: 'sine', vol: 0.15 }); tone(N.E6, 0.1, 0.25, { type: 'sine', vol: 0.12 }); },
-      reveal() {
-        tone(N.G5, 0, 0.2, { type: 'triangle', vol: 0.15 });
-        tone(N.E5, 0.15, 0.2, { type: 'triangle', vol: 0.15 });
-        tone(N.C5, 0.3, 0.45, { type: 'triangle', vol: 0.15 });
-      },
-      fanfare() {
-        const seq = [[N.C5, 0], [N.E5, 0.12], [N.G5, 0.24], [N.C6, 0.36], [N.G5, 0.6], [N.C6, 0.72]];
-        seq.forEach(([f, t]) => tone(f, t, 0.3, { type: 'square', vol: 0.06 }));
-        tone(N.E6, 0.84, 0.8, { type: 'triangle', vol: 0.16 });
-        tone(N.G6, 0.84, 0.8, { type: 'triangle', vol: 0.08 });
-      },
+    // 効果音のレシピ: [長さ(秒), 描画関数]
+    const SE = {
+      tap: [0.12, (c, d) => tone(c, d, 1100, 0, 0.07, { type: 'sine', vol: 0.22 })],
+      select: [0.18, (c, d) => { tone(c, d, 880, 0, 0.06, { vol: 0.18 }); tone(c, d, 1320, 0.05, 0.08, { vol: 0.18 }); }],
+      question: [0.7, (c, d) => {
+        tone(c, d, N.E5, 0, 0.3, { type: 'triangle', vol: 0.25 });
+        tone(c, d, N.B5, 0.12, 0.5, { type: 'triangle', vol: 0.25 });
+      }],
+      correct: [0.9, (c, d) => {
+        [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => tone(c, d, f, i * 0.07, 0.25, { type: 'triangle', vol: 0.22 }));
+        tone(c, d, N.E6, 0.28, 0.55, { type: 'sine', vol: 0.2 });
+      }],
+      wrong: [0.55, (c, d) => {
+        tone(c, d, 300, 0, 0.18, { type: 'triangle', vol: 0.3, slideTo: 200 });
+        tone(c, d, 210, 0.17, 0.32, { type: 'triangle', vol: 0.3, slideTo: 130 });
+      }],
+      sea: [0.3, (c, d) => tone(c, d, 320, 0, 0.2, { vol: 0.25, slideTo: 200 })],
+      hint: [0.45, (c, d) => { tone(c, d, N.A5, 0, 0.14, { vol: 0.2 }); tone(c, d, N.E6, 0.1, 0.28, { vol: 0.16 }); }],
+      reveal: [0.85, (c, d) => {
+        tone(c, d, N.G5, 0, 0.2, { type: 'triangle', vol: 0.22 });
+        tone(c, d, N.E5, 0.15, 0.2, { type: 'triangle', vol: 0.22 });
+        tone(c, d, N.C5, 0.3, 0.5, { type: 'triangle', vol: 0.22 });
+      }],
+      fanfare: [1.8, (c, d) => {
+        [[N.C5, 0], [N.E5, 0.12], [N.G5, 0.24], [N.C6, 0.36], [N.G5, 0.6], [N.C6, 0.72]]
+          .forEach(([f, t]) => tone(c, d, f, t, 0.3, { type: 'triangle', vol: 0.2 }));
+        tone(c, d, N.E6, 0.84, 0.85, { vol: 0.2 });
+        tone(c, d, N.G6, 0.84, 0.85, { vol: 0.1 });
+      }],
     };
-  })();
 
-  // ---------------------------------------------------------------- BGM (宇宙のアンビエント)
-  // 音声ファイルを使わず、Web Audio でゆっくり変化する和音ときらめく音をリアルタイム生成する
-  const Music = (() => {
-    let started = false;
-    let bus = null;
-    let reverb = null;
-    let chordIndex = 0;
+    function startRendering(oc) {
+      return new Promise((resolve, reject) => {
+        oc.oncomplete = (e) => resolve(e.renderedBuffer);
+        const p = oc.startRendering();
+        if (p && p.then) p.then(resolve, reject);
+      });
+    }
 
-    // ゆったりした和音進行 (Cmaj9 → Am9 → Fmaj7#11 → Gsus2)
-    const CHORDS = [
-      [48, 55, 59, 62, 64],
-      [45, 52, 55, 59, 60],
-      [41, 48, 52, 55, 59],
-      [43, 50, 55, 57, 62],
-    ];
-    const SPARKLE = [72, 74, 76, 79, 81, 84, 86, 88]; // ペンタトニック
-    const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    function renderSE(len, fn) {
+      const oc = new OAC(1, Math.ceil(SR * len), SR);
+      fn(oc, oc.destination);
+      return startRendering(oc);
+    }
 
     function makeImpulse(c, seconds, decay) {
-      const len = Math.floor(c.sampleRate * seconds);
-      const buf = c.createBuffer(2, len, c.sampleRate);
+      const len = Math.floor(SR * seconds);
+      const buf = c.createBuffer(2, len, SR);
       for (let ch = 0; ch < 2; ch++) {
         const d = buf.getChannelData(ch);
         for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
@@ -205,89 +189,175 @@
       return buf;
     }
 
-    function playChord() {
-      const c = Sound.ctx;
-      const notes = CHORDS[chordIndex % CHORDS.length];
-      chordIndex++;
-      const t0 = c.currentTime;
-      const dur = 9;
-      notes.forEach((m, i) => {
-        [-6, 6].forEach((detune) => {
-          const osc = c.createOscillator();
-          const filt = c.createBiquadFilter();
-          const g = c.createGain();
-          osc.type = i === 0 ? 'sine' : 'sawtooth';
-          osc.frequency.value = mtof(m);
-          osc.detune.value = detune;
-          filt.type = 'lowpass';
-          filt.frequency.setValueAtTime(400, t0);
-          filt.frequency.linearRampToValueAtTime(900 + Math.random() * 400, t0 + dur / 2);
-          filt.frequency.linearRampToValueAtTime(400, t0 + dur);
-          const v = i === 0 ? 0.05 : 0.012;
-          g.gain.setValueAtTime(0.0001, t0);
-          g.gain.linearRampToValueAtTime(v, t0 + 3);
-          g.gain.setValueAtTime(v, t0 + dur - 3.5);
-          g.gain.linearRampToValueAtTime(0.0001, t0 + dur + 1);
-          osc.connect(filt).connect(g).connect(bus);
-          osc.start(t0);
-          osc.stop(t0 + dur + 1.2);
+    // 宇宙のアンビエント BGM (32秒のループ) を事前に作る
+    async function renderBgm() {
+      const CHORDS = [ // Cmaj9 → Am9 → Fmaj7#11 → Gsus2
+        [48, 55, 59, 62, 64],
+        [45, 52, 55, 59, 60],
+        [41, 48, 52, 55, 59],
+        [43, 50, 55, 57, 62],
+      ];
+      const SPARKLE = [72, 74, 76, 79, 81, 84, 86, 88];
+      const STEP = 8;
+      const L = STEP * CHORDS.length; // ループの長さ
+      const TAIL = 6;                  // ループ先頭に重ねる余韻
+      const oc = new OAC(2, SR * (L + TAIL), SR);
+      const bus = oc.createGain();
+      const reverb = oc.createConvolver();
+      reverb.buffer = makeImpulse(oc, 3.5, 2.5);
+      const wet = oc.createGain();
+      wet.gain.value = 0.8;
+      bus.connect(oc.destination);
+      bus.connect(reverb);
+      reverb.connect(wet).connect(oc.destination);
+
+      CHORDS.forEach((notes, k) => {
+        const t0 = k * STEP;
+        const dur = STEP + 1;
+        notes.forEach((m, i) => {
+          [-6, 6].forEach((detune) => {
+            const osc = oc.createOscillator();
+            const filt = oc.createBiquadFilter();
+            const g = oc.createGain();
+            osc.type = i === 0 ? 'sine' : 'sawtooth';
+            osc.frequency.value = mtof(m);
+            osc.detune.value = detune;
+            filt.type = 'lowpass';
+            filt.frequency.setValueAtTime(400, t0);
+            filt.frequency.linearRampToValueAtTime(900 + Math.random() * 400, t0 + dur / 2);
+            filt.frequency.linearRampToValueAtTime(400, t0 + dur);
+            const v = i === 0 ? 0.05 : 0.012;
+            g.gain.setValueAtTime(0, t0);
+            g.gain.linearRampToValueAtTime(v, t0 + 3);
+            g.gain.setValueAtTime(v, t0 + dur - 3.5);
+            g.gain.linearRampToValueAtTime(0, t0 + dur + 1);
+            osc.connect(filt).connect(g).connect(bus);
+            osc.start(t0);
+            osc.stop(t0 + dur + 1.1);
+          });
         });
       });
+
+      // きらめく音
+      for (let t = 0.5; t < L - 1; t += 1.2 + Math.random() * 3) {
+        const osc = oc.createOscillator();
+        const g = oc.createGain();
+        osc.frequency.value = mtof(SPARKLE[Math.floor(Math.random() * SPARKLE.length)]);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.03, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
+        osc.connect(g).connect(reverb);
+        osc.start(t);
+        osc.stop(t + 2.6);
+      }
+
+      const rendered = await startRendering(oc);
+      // 末尾の余韻をループ先頭に重ねて、つなぎ目なくループさせる
+      const loop = oc.createBuffer(2, SR * L, SR);
+      let peak = 0;
+      for (let ch = 0; ch < 2; ch++) {
+        const src = rendered.getChannelData(ch);
+        const out = loop.getChannelData(ch);
+        for (let i = 0; i < out.length; i++) {
+          out[i] = src[i] + (i < SR * TAIL ? src[SR * L + i] : 0);
+          peak = Math.max(peak, Math.abs(out[i]));
+        }
+      }
+      // 音量をそろえる
+      const scale = peak > 0 ? 0.3 / peak : 1;
+      for (let ch = 0; ch < 2; ch++) {
+        const out = loop.getChannelData(ch);
+        for (let i = 0; i < out.length; i++) out[i] *= scale;
+      }
+      return loop;
     }
 
-    function sparkle() {
-      const c = Sound.ctx;
-      const t0 = c.currentTime + Math.random() * 0.5;
-      const m = SPARKLE[Math.floor(Math.random() * SPARKLE.length)];
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = mtof(m);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.03, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.5);
-      osc.connect(g).connect(reverb);
-      osc.start(t0);
-      osc.stop(t0 + 2.6);
+    function ensureContext() {
+      if (ctx || !AC) return ctx;
+      ctx = new AC();
+      // 音割れ防止のリミッター
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.25;
+      master = ctx.createGain();
+      master.gain.value = enabled ? 1 : 0;
+      master.connect(limiter).connect(ctx.destination);
+      return ctx;
+    }
+
+    function startBgm() {
+      if (bgmStarted || !bgmBuffer || !ctx) return;
+      bgmStarted = true;
+      const src = ctx.createBufferSource();
+      src.buffer = bgmBuffer;
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 2);
+      src.connect(g).connect(master);
+      src.start();
     }
 
     return {
-      start() {
-        if (started) return;
-        const c = Sound.ctx;
+      get enabled() { return enabled; },
+      // ロード処理: 効果音と BGM を事前に作る
+      async load() {
+        if (!AC || !OAC) return;
+        const names = Object.keys(SE);
+        const rendered = await Promise.all(names.map((n) => renderSE(SE[n][0], SE[n][1])));
+        names.forEach((n, i) => { buffers[n] = rendered[i]; });
+        bgmBuffer = await renderBgm();
+      },
+      // ユーザー操作時に呼ぶ (ブラウザの自動再生制限の解除)
+      unlock() {
+        const c = ensureContext();
         if (!c) return;
-        started = true;
-        bus = c.createGain();
-        bus.gain.value = 0.9;
-        reverb = c.createConvolver();
-        reverb.buffer = makeImpulse(c, 5, 2.5);
-        const wet = c.createGain();
-        wet.gain.value = 0.8;
-        bus.connect(Sound.master);
-        bus.connect(reverb);
-        reverb.connect(wet).connect(Sound.master);
-        playChord();
-        setInterval(playChord, 8000);
-        (function loop() {
-          sparkle();
-          setTimeout(loop, 1200 + Math.random() * 3500);
-        })();
+        if (c.state !== 'running') c.resume();
+        startBgm();
+      },
+      toggle() {
+        enabled = !enabled;
+        try { localStorage.setItem('kunisagashi.sound', enabled ? 'on' : 'off'); } catch (e) { /* noop */ }
+        if (master) master.gain.setTargetAtTime(enabled ? 1 : 0, ctx.currentTime, 0.05);
+        return enabled;
+      },
+      play(name) {
+        if (!ctx || !enabled || !buffers[name] || ctx.state !== 'running') return;
+        const src = ctx.createBufferSource();
+        src.buffer = buffers[name];
+        src.connect(master);
+        src.start();
       },
     };
   })();
+  const sfx = (name) => () => Sound.play(name);
+  Object.assign(Sound, {
+    tap: sfx('tap'), select: sfx('select'), question: sfx('question'), correct: sfx('correct'),
+    wrong: sfx('wrong'), sea: sfx('sea'), hint: sfx('hint'), reveal: sfx('reveal'), fanfare: sfx('fanfare'),
+  });
 
   // ---------------------------------------------------------------- 地球
-  const globe = new Globe($('globe'))
-    .globeImageUrl('img/earth-blue-marble.jpg')
+  const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches;
+  const PLAIN_TEXTURE = 'img/earth-blue-marble.jpg';
+  let borderTexture = null; // 国境線を描き込んだテクスチャ (かんたんモード用)
+
+  const globe = new Globe($('globe'), {
+    rendererConfig: { antialias: !IS_MOBILE, powerPreference: 'high-performance' },
+  })
+    .globeImageUrl(PLAIN_TEXTURE)
     .bumpImageUrl('img/earth-topology.png')
     .backgroundImageUrl('img/night-sky.png')
     .showAtmosphere(true)
     .atmosphereColor('#7cc4ff')
     .atmosphereAltitude(0.18)
-    .polygonsData(features)
+    // ポリゴンは正解・不正解でハイライトする国だけ描く (全ての国を描くと重いため)
+    .polygonsData([])
     .polygonGeoJsonGeometry('geometry')
     .polygonSideColor(() => null)
-    .polygonsTransitionDuration(200)
+    .polygonsTransitionDuration(0)
     .htmlElementsData([])
     .htmlLat('lat').htmlLng('lng').htmlAltitude(0.02)
     .htmlElement((d) => {
@@ -297,6 +367,83 @@
       return el;
     })
     .pointOfView({ lat: 25, lng: 135, altitude: 2.6 });
+
+  // スマホは描画解像度を抑えて軽くする
+  globe.renderer().setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.5 : 2));
+
+  // 国境線を地球の画像に直接描き込む (線を3Dで描くより圧倒的に軽い)
+  function buildBorderTexture() {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const W = img.width;
+        const H = img.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const c = canvas.getContext('2d');
+        c.drawImage(img, 0, 0);
+        c.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        c.lineWidth = Math.max(1, W / 2400);
+        c.lineJoin = 'round';
+        c.beginPath();
+        for (const f of features) {
+          if (f.properties.continent === 'antarctica') continue;
+          const g = f.geometry;
+          const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+          for (const poly of polys) {
+            for (const ring of poly) {
+              let px = null;
+              ring.forEach(([lng, lat], i) => {
+                const x = ((lng + 180) / 360) * W;
+                const y = ((90 - lat) / 180) * H;
+                // 経度180度をまたぐ線は引かない
+                if (i === 0 || Math.abs(x - px) > W / 2) c.moveTo(x, y);
+                else c.lineTo(x, y);
+                px = x;
+              });
+            }
+          }
+        }
+        c.stroke();
+        canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = PLAIN_TEXTURE;
+    });
+  }
+
+  // ---------------------------------------------------------------- 当たり判定
+  // クリックした緯度経度から国を割り出す
+  const hitParts = [];
+  for (const f of features) {
+    const g = f.geometry;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    for (const rings of polys) {
+      let minX = 180, minY = 90, maxX = -180, maxY = -90;
+      for (const [x, y] of rings[0]) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+      hitParts.push({ f, rings, minX, minY, maxX, maxY });
+    }
+  }
+  function inRing(x, y, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function countryAt(lat, lng) {
+    for (const p of hitParts) {
+      if (lng < p.minX || lng > p.maxX || lat < p.minY || lat > p.maxY) continue;
+      if (inRing(lng, lat, p.rings[0]) && !p.rings.slice(1).some((h) => inRing(lng, lat, h))) return p.f;
+    }
+    return null;
+  }
 
   const controls = globe.controls();
   controls.autoRotate = true;
@@ -333,7 +480,6 @@
     answered: false,
     // 表示
     marks: new Map(),  // feature.id -> 'good' | 'bad' | 'reveal'
-    hoverId: null,
     tags: [],
   };
 
@@ -341,28 +487,18 @@
     good: 'rgba(61, 220, 132, 0.55)',
     bad: 'rgba(255, 70, 70, 0.5)',
     reveal: 'rgba(255, 200, 61, 0.6)',
-    hover: 'rgba(255, 255, 255, 0.18)',
-    none: 'rgba(0, 0, 0, 0)',
   };
   const STROKE = {
     good: '#3ddc84', bad: '#ff5a5a', reveal: '#ffc83d',
   };
 
   function refreshPolygons() {
-    const borders = DIFFICULTY[state.difficulty].borders && (state.playing || state.answered);
+    const marked = features.filter((f) => state.marks.has(f.properties.id));
     globe
-      .polygonCapColor((f) => {
-        const m = state.marks.get(f.properties.id);
-        if (m) return CAP[m];
-        if (borders && f.properties.id === state.hoverId) return CAP.hover;
-        return CAP.none;
-      })
-      .polygonStrokeColor((f) => {
-        const m = state.marks.get(f.properties.id);
-        if (m) return STROKE[m];
-        return borders ? 'rgba(255, 255, 255, 0.75)' : null;
-      })
-      .polygonAltitude((f) => (state.marks.has(f.properties.id) ? 0.012 : 0.006));
+      .polygonCapColor((f) => CAP[state.marks.get(f.properties.id)])
+      .polygonStrokeColor((f) => STROKE[state.marks.get(f.properties.id)])
+      .polygonAltitude(0.008)
+      .polygonsData(marked);
   }
 
   function setTags() { globe.htmlElementsData(state.tags.slice()); }
@@ -421,7 +557,6 @@
     state.answered = false;
     state.marks.clear();
     state.tags = [];
-    state.hoverId = null;
     setTags();
     refreshPolygons();
     controls.autoRotate = true;
@@ -429,24 +564,43 @@
   }
 
   // ---------------------------------------------------------------- ゲーム進行
+  const MIN_POOL = 6;
+  function questionPool() {
+    const diff = DIFFICULTY[state.difficulty];
+    const inRegion = features
+      .map((f) => f.properties)
+      .filter((p) => p.q && (state.region === 'all' || p.continent === state.region));
+    const pool = inRegion.filter(diff.filter);
+    if (pool.length >= MIN_POOL) return pool;
+    // 条件に合う国が少ない地域 (例: むずかしい×南アメリカ) は、
+    // むずかしいなら知名度の低い順、それ以外は有名な順に補う
+    const dir = state.difficulty === 'hard' ? -1 : 1;
+    return shuffle(inRegion.slice()).sort((a, b) => (a.rank - b.rank) * dir).slice(0, MIN_POOL);
+  }
+
   function startGame() {
     const diff = DIFFICULTY[state.difficulty];
-    const pool = features
-      .map((f) => f.properties)
-      .filter((p) => p.q && diff.filter(p) && (state.region === 'all' || p.continent === state.region));
+    const pool = questionPool();
     if (pool.length === 0) {
       toast(T().noQuestions, 'warn');
       return;
     }
-    // 国数が10未満の地域では重複を許して10問にする
+    // 国数が10未満の地域では重複を許して10問にする (同じ国が連続しないようにする)
     let qs = shuffle(pool.slice());
-    while (qs.length < TOTAL_QUESTIONS) qs = qs.concat(shuffle(pool.slice()));
+    while (qs.length < TOTAL_QUESTIONS) {
+      const more = shuffle(pool.slice());
+      if (more.length > 1 && more[0] === qs[qs.length - 1]) more.push(more.shift());
+      qs = qs.concat(more);
+    }
     state.questions = qs.slice(0, TOTAL_QUESTIONS);
     state.index = 0;
     state.score = 0;
     state.results = [];
     state.lastResult = null;
     state.playing = true;
+    // かんたんモードだけ国境線入りの地球にする
+    const tex = diff.borders && borderTexture ? borderTexture : PLAIN_TEXTURE;
+    if (globe.globeImageUrl() !== tex) globe.globeImageUrl(tex);
     controls.autoRotate = false;
     show('play');
     nextQuestion();
@@ -515,8 +669,12 @@
     return state.answered ? state.elapsed : performance.now() - state.startedAt;
   }
 
+  let lastTimerText = '';
   function tick() {
-    if (state.playing) $('timer').textContent = '⏱ ' + fmtTime(currentElapsed());
+    if (state.playing) {
+      const text = '⏱ ' + fmtTime(currentElapsed());
+      if (text !== lastTimerText) { $('timer').textContent = text; lastTimerText = text; }
+    }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -679,6 +837,43 @@
     });
   }
 
+  // ---------------------------------------------------------------- シェア
+  const CAN_SHARE = typeof navigator.share === 'function';
+  const shareUrl = () => location.origin + location.pathname;
+  function shareText() {
+    const r = state.lastResult;
+    const tr = T();
+    return tr.shareText(tr.modeLabel(tr[state.difficulty], tr[state.region]), state.score, r.correctCount, fmtTime(r.totalTime));
+  }
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.append(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    toast(T().copied, 'good', 1500);
+  }
+  $('share-btn').addEventListener('click', async () => {
+    if (!state.lastResult) return;
+    if (CAN_SHARE) {
+      try {
+        await navigator.share({ title: T().docTitle, text: shareText(), url: shareUrl() });
+      } catch (e) { /* キャンセル */ }
+    } else {
+      copyText(`${shareText()}\n${shareUrl()}`);
+    }
+  });
+  $('x-btn').addEventListener('click', () => {
+    if (!state.lastResult) return;
+    const u = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText())}&url=${encodeURIComponent(shareUrl())}`;
+    window.open(u, '_blank', 'noopener');
+  });
+
   // 画面上のテキストを現在の言語で描き直す
   function applyLanguage() {
     const tr = T();
@@ -688,6 +883,8 @@
       const v = tr[el.dataset.i18n];
       if (typeof v === 'string') el.innerHTML = v;
     });
+    // Web Share API が使えない環境では「コピー」ボタンにする
+    $('share-btn').textContent = CAN_SHARE ? tr.share : tr.copy;
     document.querySelectorAll('#lang-switch button').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
     $('sound-btn').setAttribute('aria-label', tr.soundLabel);
     $('score').textContent = tr.pts(state.score);
@@ -715,14 +912,37 @@
   });
 
   // ---------------------------------------------------------------- イベント
-  globe
-    .onPolygonClick((f, ev, coords) => handleClick(f, coords))
-    .onGlobeClick((coords) => handleClick(null, coords))
-    .onPolygonHover((f) => {
-      if (!DIFFICULTY[state.difficulty].borders || !state.playing) return;
-      state.hoverId = f ? f.properties.id : null;
-      refreshPolygons();
-    });
+  const onGlobeTap = (coords) => {
+    if (!coords) return;
+    const f = countryAt(coords.lat, coords.lng);
+    // 南極などの出題対象外の地域を押したときも、国名は教える
+    handleClick(f, coords);
+  };
+  // globe.gl 標準のマウス判定は、マウスを動かすたびに GPU から画素を読み戻すため重い。
+  // これを止めて、タップ (ほぼ動かさずに離した操作) だけを自前で判定する。
+  globe.enablePointerInteraction(false);
+  const pointers = new Map();
+  let tapCandidate = null;
+  const globeEl = $('globe');
+  globeEl.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, true);
+    tapCandidate = pointers.size === 1 ? { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId } : null;
+  });
+  globeEl.addEventListener('pointermove', (e) => {
+    if (tapCandidate && tapCandidate.id === e.pointerId && Math.hypot(e.clientX - tapCandidate.x, e.clientY - tapCandidate.y) > 8) {
+      tapCandidate = null; // ドラッグ (回転) なのでタップではない
+    }
+  });
+  const endPointer = (e) => {
+    pointers.delete(e.pointerId);
+    const c = tapCandidate;
+    tapCandidate = null;
+    if (e.type !== 'pointerup' || !c || c.id !== e.pointerId || performance.now() - c.t > 600) return;
+    const rect = globeEl.getBoundingClientRect();
+    onGlobeTap(globe.toGlobeCoords(e.clientX - rect.left, e.clientY - rect.top));
+  };
+  globeEl.addEventListener('pointerup', endPointer);
+  globeEl.addEventListener('pointercancel', endPointer);
 
   function bindChoices(groupId, key) {
     $(groupId).addEventListener('click', (e) => {
@@ -738,8 +958,7 @@
 
   // すべてのボタンでタップ音 (選択肢は専用の音)
   document.addEventListener('pointerdown', (e) => {
-    Sound.unlock();
-    Music.start(); // ブラウザの自動再生制限のため、最初の操作で BGM を開始
+    Sound.unlock(); // ブラウザの自動再生制限のため、最初の操作で音を有効にして BGM を開始
     const btn = e.target.closest('button');
     if (btn && !btn.classList.contains('choice') && !btn.disabled) Sound.tap();
   });
@@ -767,18 +986,32 @@
   soundBtn.addEventListener('click', () => { Sound.toggle(); renderSound(); });
   renderSound();
 
-  // 地球のテクスチャ読み込み完了
+  // ---------------------------------------------------------------- ロード
+  // 地球の画像・国境線の画像・効果音/BGM をすべて準備してからスタートできるようにする
   $('start-btn').disabled = true;
-  globe.onGlobeReady(() => {
-    $('start-btn').disabled = false;
+  (async () => {
+    const tasks = [
+      new Promise((resolve) => {
+        globe.onGlobeReady(resolve);
+        setTimeout(resolve, 20000); // 万一イベントが来なくても進める
+      }),
+      buildBorderTexture().then((url) => { borderTexture = url; }).catch((e) => console.warn('border texture', e)),
+      Sound.load().catch((e) => console.warn('sound', e)),
+    ];
+    let done = 0;
+    const progress = () => {
+      done++;
+      $('load-bar').style.width = `${Math.round((done / tasks.length) * 100)}%`;
+    };
+    tasks.forEach((t) => t.then(progress));
+    await Promise.all(tasks);
     $('loading').hidden = true;
-  });
-  // 念のため、読み込みが遅くても操作できるようにする
-  setTimeout(() => { $('start-btn').disabled = false; $('loading').hidden = true; }, 8000);
+    $('start-btn').disabled = false;
+  })();
 
   refreshPolygons();
   applyLanguage();
 
   // テスト用
-  window.__game = { state, globe, handleClick, features };
+  window.__game = { state, globe, handleClick, features, countryAt };
 })();
