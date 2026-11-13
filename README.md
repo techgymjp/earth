@@ -77,7 +77,7 @@ python3 -m http.server 8000
 ![動作確認用 APK のリリース画面](docs/apk-qr.png)
 
 AdMob のアプリ ID は `android/app/src/main/res/values/strings.xml` の `admob_app_id`、本番の広告ユニット ID は `ads.js` の `UNITS.android.production` にあります。
-（AdMob への登録が済むまでは、アプリ ID は Google 公式のテスト用、本番の広告ユニット ID は空です。空の種類の広告は本番ビルドで出しません）
+（本番の広告ユニット ID がまだ届いていない種類は空にしてあり、空の種類の広告は本番ビルドで出しません）
 動作確認用 APK はどれもテスト広告、Google Play 用の AAB は本番の広告です。
 
 手元で試すとき: `npm install` → `npm run android:sync` → `npm run android:open`（Android Studio が必要）。
