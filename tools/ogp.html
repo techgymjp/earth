@@ -41,6 +41,19 @@
     <div class="lead">リアルな地球をくるくる回して<br>お題の国を見つけよう！</div>
     <div class="card"><b>日本</b>を探して！</div>
   </div>
+  <script>
+    // ?lang=en で英語版 (Google Play の英語のフィーチャー グラフィック用)
+    if (new URLSearchParams(location.search).get('lang') === 'en') {
+      document.documentElement.lang = 'en';
+      document.querySelector('h1').innerHTML = 'Find the<br>Country';
+      document.querySelector('h1').style.cssText = 'font-size: 104px; letter-spacing: 0.01em; line-height: 1;';
+      document.querySelector('.en').textContent = 'WORLD GEOGRAPHY QUIZ';
+      document.querySelector('.lead').innerHTML = 'Spin a realistic globe<br>and find the country!';
+      document.querySelector('.lead').style.marginTop = '24px';
+      document.querySelector('.card').innerHTML = 'Find <b>Japan</b>!';
+      document.querySelector('.card').style.marginTop = '24px';
+    }
+  </script>
   <script src="../vendor/globe.gl.min.js"></script>
   <script src="../data/countries.js"></script>
   <script>
@@ -57,7 +70,7 @@
       .polygonStrokeColor(() => '#3ddc84')
       .polygonAltitude(0.01)
       .htmlElementsData([{ lat: 36.5, lng: 138.5 }])
-      .htmlElement(() => { const el = document.createElement('div'); el.className = 'tag'; el.textContent = '正解！'; return el; })
+      .htmlElement(() => { const el = document.createElement('div'); el.className = 'tag'; el.textContent = document.documentElement.lang === 'en' ? 'Correct!' : '正解！'; return el; })
       .pointOfView({ lat: 28, lng: 125, altitude: 1.55 });
     g.controls().enableZoom = false;
     g.onGlobeReady(() => setTimeout(() => { window.__ready = true; }, 1500));

@@ -82,6 +82,8 @@ AdMob のアプリ ID は `android/app/src/main/res/values/strings.xml` の `adm
 手元で試すとき: `npm install` → `npm run android:sync` → `npm run android:open`（Android Studio が必要）。
 アイコンと起動画面は `assets/` の元画像（`tools/icon.html` で描画）から `npx @capacitor/assets generate --android` で生成しています。
 
+ストア用の画像（スクリーンショット・フィーチャー グラフィック・アイコン）と紹介文の下書き（日英、ASO を考慮）は `docs/store/` にあります（`docs/store/listing.md`）。
+
 ## ライセンス
 
 著作権はテックジム株式会社に帰属します（All rights reserved）。許可なく複製・改変・再配布すること、Web サイトやアプリ（Google Play、App Store など）として公開・販売すること、名前・アイコン・画像を使うことを禁止します。

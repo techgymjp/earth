@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>store shot</title>
+<!--
+  Google Play 用スクリーンショット (1080×1920) の合成ページ。
+  上にキャッチコピー、下にゲーム画面 (840×1494) を置く。
+  ?img=画像のURL&cap=見出し(改行は \n)&sub=小見出し&lang=ja|en
+-->
+<style>
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 0%, #1b3f86 0%, #0a1733 45%, #030814 100%);
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+    color: #fff; text-align: center;
+  }
+  .cap { position: absolute; left: 40px; right: 40px; top: 70px; height: 300px; display: flex; flex-direction: column; justify-content: center; }
+  h1 {
+    margin: 0; font-size: 88px; line-height: 1.18; font-weight: 900; letter-spacing: 0.02em; white-space: pre-line;
+    background: linear-gradient(90deg, #8fd8ff, #b6ffcf); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  html[lang="en"] h1 { font-size: 80px; letter-spacing: 0; }
+  p { margin: 18px 0 0; font-size: 40px; color: #d4e2ff; }
+  .shot {
+    position: absolute; left: 120px; top: 400px; width: 840px; height: 1494px;
+    border-radius: 44px; overflow: hidden;
+    box-shadow: 0 0 0 6px rgba(160, 200, 255, 0.35), 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+  .shot img { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+  <div class="cap"><h1 id="cap"></h1><p id="sub"></p></div>
+  <div class="shot"><img id="img" alt=""></div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    document.documentElement.lang = q.get('lang') || 'ja';
+    document.getElementById('cap').textContent = (q.get('cap') || '').replace(/\\n/g, '\n');
+    document.getElementById('sub').textContent = q.get('sub') || '';
+    const img = document.getElementById('img');
+    img.onload = () => { window.__ready = true; };
+    img.src = q.get('img');
+  </script>
+</body>
+</html>

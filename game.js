@@ -1209,6 +1209,6 @@
 
   // web-only:start
   // テスト・撮影用 (アプリ用のビルドでは取り除く)
-  window.__game = { state, globe, handleClick, features, countryAt };
+  window.__game = { state, globe, handleClick, features, countryAt, nextQuestion, showResult, useHint, show };
   // web-only:end
 })();
