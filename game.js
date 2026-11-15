@@ -50,6 +50,9 @@
       newBest: (label, prev) => `🎉 ベスト更新！（${label}）前回のベスト: ${prev}点`,
       best: (label, score, time) => `ベストスコア（${label}）: ${score}点${time ? ' / ' + time : ''}`,
       soundLabel: 'サウンドのオン/オフ',
+      // web-only:start
+      storeGet: 'ANDROID アプリ版', storeTm: 'Google Play および Google Play ロゴは Google LLC の商標です。',
+      // web-only:end
       privacy: 'プライバシーポリシー', privacyUrl: 'https://techgym.jp/privacy-policy/', adSettings: '広告の設定',
       pause: '一時停止', paused: '一時停止中', resume: '再開',
       reviveTitle: 'ハートがなくなりました',
@@ -92,6 +95,9 @@
       newBest: (label, prev) => `🎉 New best! (${label}) Previous best: ${prev} pts`,
       best: (label, score, time) => `Best score (${label}): ${score} pts${time ? ' / ' + time : ''}`,
       soundLabel: 'Toggle sound',
+      // web-only:start
+      storeGet: 'GET THE ANDROID APP', storeTm: 'Google Play and the Google Play logo are trademarks of Google LLC.',
+      // web-only:end
       privacy: 'Privacy Policy', privacyUrl: 'https://techgym.jp/privacy-policy-en/', adSettings: 'Ad settings',
       pause: 'Pause', paused: 'Paused', resume: 'Resume',
       reviveTitle: 'Out of hearts',

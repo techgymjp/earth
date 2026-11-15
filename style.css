@@ -380,3 +380,24 @@ html[lang="en"] h1 { letter-spacing: 0.02em; font-size: 38px; }
 /* アプリでバナー広告を出している画面は、下をあける */
 html.banner .overlay { padding-top: 60px; padding-bottom: 70px; }
 html.banner .sound-btn { top: 10px; left: 10px; right: auto; bottom: auto; }
+
+/* web-only:start */
+/* Web 版だけ: Google Play のアプリへのリンク */
+.store-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 7px 16px 7px 12px;
+  border-radius: 10px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  text-decoration: none;
+  text-align: left;
+}
+.store-link .gp { font-size: 20px; color: #3ddc84; }
+.store-link small { display: block; font-size: 10px; letter-spacing: 0.06em; color: #cfd8ea; }
+.store-link b { display: block; font-size: 17px; line-height: 1.1; }
+.tm { margin: 4px 0 0; font-size: 9px; color: var(--muted); }
+/* web-only:end */
