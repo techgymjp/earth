@@ -15,7 +15,7 @@ window.Ads = (() => {
       // 本番の広告ユニット(AdMob の Android アプリ「国探し」。空の種類は出さない)
       production: {
         interstitial: 'ca-app-pub-6411535997477460/6350988528',
-        rewarded: 'ca-app-pub-6411535997477460/1020334867',
+        rewarded: 'ca-app-pub-6411535997477460/7553610745',
         banner: 'ca-app-pub-6411535997477460/2902698102',
       },
     },
