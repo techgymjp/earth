@@ -36,4 +36,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 縦画面固定 (sensorPortrait) にしているが、縦画面は必須の機能ではないと明示する。
+         書かないと Google Play が「縦画面が必須」とみなし、縦画面に対応していない端末
+         (Chromebook など) ではインストールできなくなる -->
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
 </manifest>
